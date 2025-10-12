@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "🚀 Bitcoin Tracker – ECS Fargate + DynamoDB + API Gateway + LabRole"
+Description: "🚀 Bitcoin Tracker – ECS Fargate + DynamoDB + API Gateway + LabRole (no health checks)"
 
 Parameters:
   VpcId:
@@ -17,7 +17,6 @@ Parameters:
 
 Resources:
 
-  # 🔹 DynamoDB table
   DynamoTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -30,7 +29,6 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-  # 🔹 Security Group (allow from VPC + ALB)
   AppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -48,7 +46,6 @@ Resources:
         - Key: Name
           Value: BitcoinAppSecurityGroup
 
-  # 🔹 Application Load Balancer
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -65,7 +62,7 @@ Resources:
         - Key: Name
           Value: BitcoinTrackerALB
 
-  # 🔹 Target Group for ECS Tasks
+  # 🔹 Target Group (sin health check)
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -74,17 +71,8 @@ Resources:
       Protocol: HTTP
       VpcId: !Ref VpcId
       TargetType: ip
-      HealthCheckEnabled: true
-      HealthCheckProtocol: HTTP
-      HealthCheckPath: /health
-      HealthCheckIntervalSeconds: 60         # antes 30
-      HealthCheckTimeoutSeconds: 15          # antes 10
-      HealthyThresholdCount: 3               # antes 2
-      UnhealthyThresholdCount: 10            # antes 5
-      Matcher:
-        HttpCode: "200-399"                  # antes 200, aceptamos redirecciones saludables
+      HealthCheckEnabled: false   # 🚫 desactivado
 
-  # 🔹 ALB Listener
   LoadBalancerListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -95,13 +83,11 @@ Resources:
       Port: 80
       Protocol: HTTP
 
-  # 🔹 ECS Cluster
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: BitcoinCluster
 
-  # 🔹 Task Definition (uses LabRole)
   TaskDef:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -121,13 +107,7 @@ Resources:
           Environment:
             - Name: TABLE_NAME
               Value: BitcoinPositions
-          # ⬇️ Healthcheck interno con mucho margen
-          HealthCheck:
-            Command: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
-            Interval: 60         # antes 30
-            Timeout: 10          # antes 5
-            Retries: 5           # antes 3
-            StartPeriod: 300     # antes 120
+          # 🚫 health check eliminado
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -135,14 +115,12 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: bitcoin-tracker
 
-  # 🔹 CloudWatch Log Group
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: /ecs/bitcoin-tracker
       RetentionInDays: 7
 
-  # 🔹 ECS Service (with Load Balancer)
   Service:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerListener
@@ -164,16 +142,14 @@ Resources:
         - ContainerName: bitcoin
           ContainerPort: 80
           TargetGroupArn: !Ref TargetGroup
-      # ⬇️ mucho periodo de gracia para estabilizar
-      HealthCheckGracePeriodSeconds: 420   # antes 60
+      # 🚫 health grace removed
       DeploymentConfiguration:
         MaximumPercent: 200
-        MinimumHealthyPercent: 50
+        MinimumHealthyPercent: 0
         DeploymentCircuitBreaker:
           Enable: true
-          Rollback: true
+          Rollback: false
 
-  # 🔹 VPC Link for API Gateway
   VpcLink:
     Type: AWS::ApiGatewayV2::VpcLink
     Properties:
@@ -184,7 +160,6 @@ Resources:
       SecurityGroupIds:
         - !Ref AppSecurityGroup
 
-  # 🔹 HTTP API Gateway (v2)
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -203,7 +178,6 @@ Resources:
         AllowHeaders:
           - "*"
 
-  # 🔹 API Gateway Integration with ALB
   HttpApiIntegration:
     Type: AWS::ApiGatewayV2::Integration
     Properties:
@@ -215,7 +189,6 @@ Resources:
       ConnectionId: !Ref VpcLink
       PayloadFormatVersion: "1.0"
 
-  # 🔹 API Gateway Route (catch-all)
   HttpApiRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -223,7 +196,6 @@ Resources:
       RouteKey: "$default"
       Target: !Sub "integrations/${HttpApiIntegration}"
 
-  # 🔹 API Gateway Stage
   HttpApiStage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
@@ -234,7 +206,6 @@ Resources:
         DestinationArn: !GetAtt ApiLogGroup.Arn
         Format: $context.requestId $context.error.message $context.error.messageString
 
-  # 🔹 CloudWatch Log Group for API Gateway
   ApiLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -245,39 +216,39 @@ Outputs:
   DynamoDBTable:
     Description: "DynamoDB Table created for storing positions"
     Value: !Ref DynamoTable
-    
+
   LoadBalancerDNS:
     Description: "Application Load Balancer DNS (for direct access)"
     Value: !GetAtt LoadBalancer.DNSName
-    
+
   ApiGatewayEndpoint:
     Description: "🎯 API Gateway URL (USE THIS for your application)"
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
-    
+
   ApiGatewayId:
     Description: "API Gateway ID"
     Value: !Ref HttpApi
-    
+
   VpcLinkId:
     Description: "VPC Link ID"
     Value: !Ref VpcLink
-    
+
   ECSService:
     Description: "ECS Service Name"
     Value: !GetAtt Service.Name
-    
+
   SecurityGroupId:
     Description: "Security Group ID"
     Value: !Ref AppSecurityGroup
-    
+
   SwaggerDocs:
     Description: "📘 Swagger Documentation URL"
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/docs"
-    
+
   WebInterface:
     Description: "🌐 Web Interface URL"
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
-    
+
   Notes:
     Description: "📝 Important Notes"
-    Value: "Access your application via the API Gateway URL. The ALB is used internally for load balancing."
+    Value: "Health checks disabled — ECS will not restart tasks even if app fails. Use only for testing."
