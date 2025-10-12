@@ -1,19 +1,16 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "🚀 Bitcoin Tracker – ECS Fargate + DynamoDB + API Gateway + LabRole (no health checks)"
+Description: "🚀 Bitcoin Tracker – ECS Fargate + DynamoDB + ALB + API Gateway (simplified)"
 
 Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id
-    Description: "Select an existing VPC (usually the default one)"
   Subnet1:
     Type: AWS::EC2::Subnet::Id
-    Description: "Public subnet 1 (AZ a)"
   Subnet2:
     Type: AWS::EC2::Subnet::Id
-    Description: "Public subnet 2 (AZ b)"
   ECRImage:
     Type: String
-    Description: "ECR image URL (e.g. 992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest)"
+    Description: "ECR image URL (example: 992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest)"
 
 Resources:
 
@@ -32,7 +29,7 @@ Resources:
   AppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP from VPC and Load Balancer
+      GroupDescription: Allow HTTP traffic
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -42,51 +39,55 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: BitcoinAppSecurityGroup
 
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: BitcoinTrackerALB
       Type: application
       Scheme: internet-facing
-      IpAddressType: ipv4
       Subnets:
         - !Ref Subnet1
         - !Ref Subnet2
       SecurityGroups:
         - !Ref AppSecurityGroup
-      Tags:
-        - Key: Name
-          Value: BitcoinTrackerALB
 
-  # 🔹 Target Group (sin health check)
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: BitcoinTrackerTG
       Port: 80
       Protocol: HTTP
       VpcId: !Ref VpcId
       TargetType: ip
-      HealthCheckEnabled: false   # 🚫 desactivado
+      HealthCheckEnabled: true
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 60
+      HealthCheckTimeoutSeconds: 15
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 10
+      Matcher:
+        HttpCode: "200-499"
 
   LoadBalancerListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
       LoadBalancerArn: !Ref LoadBalancer
       Port: 80
       Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
 
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: BitcoinCluster
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/bitcoin-tracker
+      RetentionInDays: 7
 
   TaskDef:
     Type: AWS::ECS::TaskDefinition
@@ -103,30 +104,21 @@ Resources:
           Image: !Ref ECRImage
           PortMappings:
             - ContainerPort: 80
-              Protocol: tcp
           Environment:
             - Name: TABLE_NAME
               Value: BitcoinPositions
-          # 🚫 health check eliminado
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: bitcoin-tracker
-
-  LogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /ecs/bitcoin-tracker
-      RetentionInDays: 7
+              awslogs-stream-prefix: bitcoin
 
   Service:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerListener
     Properties:
       Cluster: !Ref Cluster
-      ServiceName: BitcoinTrackerService
       DesiredCount: 1
       LaunchType: FARGATE
       TaskDefinition: !Ref TaskDef
@@ -142,113 +134,14 @@ Resources:
         - ContainerName: bitcoin
           ContainerPort: 80
           TargetGroupArn: !Ref TargetGroup
-      # 🚫 health grace removed
-      DeploymentConfiguration:
-        MaximumPercent: 200
-        MinimumHealthyPercent: 0
-        DeploymentCircuitBreaker:
-          Enable: true
-          Rollback: false
-
-  VpcLink:
-    Type: AWS::ApiGatewayV2::VpcLink
-    Properties:
-      Name: BitcoinTrackerVpcLink
-      SubnetIds:
-        - !Ref Subnet1
-        - !Ref Subnet2
-      SecurityGroupIds:
-        - !Ref AppSecurityGroup
-
-  HttpApi:
-    Type: AWS::ApiGatewayV2::Api
-    Properties:
-      Name: BitcoinTrackerAPI
-      Description: Bitcoin Tracker REST API with ECS Backend
-      ProtocolType: HTTP
-      CorsConfiguration:
-        AllowOrigins:
-          - "*"
-        AllowMethods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-          - OPTIONS
-        AllowHeaders:
-          - "*"
-
-  HttpApiIntegration:
-    Type: AWS::ApiGatewayV2::Integration
-    Properties:
-      ApiId: !Ref HttpApi
-      IntegrationType: HTTP_PROXY
-      IntegrationUri: !Ref LoadBalancerListener
-      IntegrationMethod: ANY
-      ConnectionType: VPC_LINK
-      ConnectionId: !Ref VpcLink
-      PayloadFormatVersion: "1.0"
-
-  HttpApiRoute:
-    Type: AWS::ApiGatewayV2::Route
-    Properties:
-      ApiId: !Ref HttpApi
-      RouteKey: "$default"
-      Target: !Sub "integrations/${HttpApiIntegration}"
-
-  HttpApiStage:
-    Type: AWS::ApiGatewayV2::Stage
-    Properties:
-      ApiId: !Ref HttpApi
-      StageName: "$default"
-      AutoDeploy: true
-      AccessLogSettings:
-        DestinationArn: !GetAtt ApiLogGroup.Arn
-        Format: $context.requestId $context.error.message $context.error.messageString
-
-  ApiLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /aws/apigateway/bitcoin-tracker
-      RetentionInDays: 7
 
 Outputs:
-  DynamoDBTable:
-    Description: "DynamoDB Table created for storing positions"
-    Value: !Ref DynamoTable
-
   LoadBalancerDNS:
-    Description: "Application Load Balancer DNS (for direct access)"
+    Description: "Access your app directly via ALB"
     Value: !GetAtt LoadBalancer.DNSName
-
-  ApiGatewayEndpoint:
-    Description: "🎯 API Gateway URL (USE THIS for your application)"
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
-
-  ApiGatewayId:
-    Description: "API Gateway ID"
-    Value: !Ref HttpApi
-
-  VpcLinkId:
-    Description: "VPC Link ID"
-    Value: !Ref VpcLink
-
-  ECSService:
+  DynamoDBTable:
+    Description: "DynamoDB Table"
+    Value: !Ref DynamoTable
+  ECSServiceName:
     Description: "ECS Service Name"
     Value: !GetAtt Service.Name
-
-  SecurityGroupId:
-    Description: "Security Group ID"
-    Value: !Ref AppSecurityGroup
-
-  SwaggerDocs:
-    Description: "📘 Swagger Documentation URL"
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/docs"
-
-  WebInterface:
-    Description: "🌐 Web Interface URL"
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
-
-  Notes:
-    Description: "📝 Important Notes"
-    Value: "Health checks disabled — ECS will not restart tasks even if app fails. Use only for testing."
