@@ -74,6 +74,8 @@ Aplicación web fullstack para gestionar posiciones de Bitcoin (compra/venta) co
 │   ├── app.js                 # Backend Express + Swagger
 │   └── public/
 │       └── index.html         # Frontend interactivo
+│       └── scripts.js         # Lógica frontend (WebSocket, CRUD)
+│       └── styles.css         # Estilos CSS
 └── README.md
 ```
 
