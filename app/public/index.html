@@ -3,49 +3,187 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bitcoin Tracker ⚡</title>
+    <title>Bitcoin Tracker | Professional Trading Dashboard</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
     <div class="app">
-      <header class="header">
-        <div class="title">
-          <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=029" alt="BTC" />
-          <h1>Bitcoin Tracker</h1>
+      <!-- Navigation Bar -->
+      <nav class="navbar">
+        <div class="nav-container">
+          <div class="nav-brand">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="brand-text">Bitcoin Tracker</span>
+          </div>
+          <div class="nav-status">
+            <div id="connection-status" class="status-indicator">
+              <span class="status-dot"></span>
+              <span class="status-text">Connecting...</span>
+            </div>
+          </div>
         </div>
-        <div id="ticker" class="ticker">Connecting to Binance...</div>
-      </header>
+      </nav>
 
-      <main class="card glass">
-        <h2>📊 Manage Positions</h2>
+      <!-- Price Ticker -->
+      <section class="ticker-section">
+        <div class="ticker-card">
+          <div class="ticker-header">
+            <div class="ticker-title">
+              <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=029" alt="BTC" class="crypto-icon" />
+              <div>
+                <h2>BTC/USDT</h2>
+                <span class="ticker-subtitle">Bitcoin / Tether</span>
+              </div>
+            </div>
+            <div class="ticker-badges">
+              <span class="badge badge-spot">Spot</span>
+              <span class="badge badge-live">Live</span>
+            </div>
+          </div>
+          <div class="ticker-content">
+            <div class="price-display">
+              <div class="current-price" id="current-price">$0.00</div>
+              <div class="price-change" id="price-change">
+                <svg class="change-icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>0.00%</span>
+              </div>
+            </div>
+            <div class="ticker-stats">
+              <div class="stat-item">
+                <span class="stat-label">24h High</span>
+                <span class="stat-value" id="high-24h">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">24h Low</span>
+                <span class="stat-value" id="low-24h">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">24h Volume</span>
+                <span class="stat-value" id="volume-24h">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <form id="form" class="form">
-          <input id="entry" type="number" step="0.01" placeholder="Entry Price (USDT)" required />
-          <input id="quantity" type="number" step="0.0001" placeholder="Quantity (BTC)" required />
-          <select id="type">
-            <option value="buy">Buy</option>
-            <option value="sell">Sell</option>
-          </select>
-          <button type="submit" class="btn-primary">Add</button>
-        </form>
+      <!-- Main Content -->
+      <div class="main-content">
+        <!-- Add Position Form -->
+        <section class="form-section">
+          <div class="section-header">
+            <h3>Create New Position</h3>
+            <p class="section-subtitle">Add a new buy or sell position to track your portfolio</p>
+          </div>
+          
+          <form id="position-form" class="position-form">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="entry">Entry Price</label>
+                <div class="input-wrapper">
+                  <span class="input-prefix">$</span>
+                  <input id="entry" type="number" step="0.01" placeholder="0.00" required />
+                  <span class="input-suffix">USDT</span>
+                </div>
+              </div>
 
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Entry</th>
-              <th>Qty</th>
-              <th>Type</th>
-              <th>Current</th>
-              <th>P/L (USDT)</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="positions"></tbody>
-        </table>
-      </main>
+              <div class="form-group">
+                <label for="quantity">Quantity</label>
+                <div class="input-wrapper">
+                  <input id="quantity" type="number" step="0.00001" placeholder="0.00000" required />
+                  <span class="input-suffix">BTC</span>
+                </div>
+              </div>
 
-      <footer class="footer">© 2025 Bitcoin Tracker — Sergio Acosta Quintana</footer>
+              <div class="form-group">
+                <label for="type">Position Type</label>
+                <select id="type" class="select-input">
+                  <option value="buy">Buy / Long</option>
+                  <option value="sell">Sell / Short</option>
+                </select>
+              </div>
+
+              <div class="form-group form-actions">
+                <label style="opacity: 0; pointer-events: none;">Action</label>
+                <button type="submit" class="btn btn-primary">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Add Position
+                </button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- Positions Table -->
+        <section class="table-section">
+          <div class="section-header">
+            <div>
+              <h3>Active Positions</h3>
+              <p class="section-subtitle" id="positions-count">0 positions</p>
+            </div>
+            <div class="total-pnl">
+              <span class="pnl-label">Total P&L:</span>
+              <span id="total-pnl" class="pnl-value">$0.00</span>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="positions-table">
+              <thead>
+                <tr>
+                  <th>Entry Price</th>
+                  <th>Current Price</th>
+                  <th>Quantity</th>
+                  <th>Type</th>
+                  <th>Value (USDT)</th>
+                  <th>P&L (USDT)</th>
+                  <th>P&L %</th>
+                  <th>Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="positions-body">
+                <tr class="empty-state">
+                  <td colspan="9">
+                    <div class="empty-content">
+                      <svg class="empty-icon" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 12V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                      <p>No positions yet</p>
+                      <span>Add your first position to start tracking</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>© 2025 Bitcoin Tracker — Built by <strong>Sergio Acosta Quintana</strong></p>
+        <div class="footer-links">
+          <a href="/docs" target="_blank">API Docs</a>
+          <span>•</span>
+          <span>ULPGC Cloud Computing</span>
+        </div>
+      </footer>
     </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
 
     <script src="scripts.js"></script>
   </body>
