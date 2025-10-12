@@ -75,17 +75,14 @@ Resources:
       VpcId: !Ref VpcId
       TargetType: ip
       HealthCheckEnabled: true
-      HealthCheckPath: /health
       HealthCheckProtocol: HTTP
+      HealthCheckPath: /health
       HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckTimeoutSeconds: 10
       HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
+      UnhealthyThresholdCount: 5
       Matcher:
         HttpCode: 200
-      Tags:
-        - Key: Name
-          Value: BitcoinTrackerTG
 
   # 🔹 ALB Listener
   LoadBalancerListener:
@@ -129,7 +126,7 @@ Resources:
             Interval: 30
             Timeout: 5
             Retries: 3
-            StartPeriod: 10
+            StartPeriod: 120
           LogConfiguration:
             LogDriver: awslogs
             Options:
