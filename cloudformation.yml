@@ -77,12 +77,12 @@ Resources:
       HealthCheckEnabled: true
       HealthCheckProtocol: HTTP
       HealthCheckPath: /health
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 10
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 5
+      HealthCheckIntervalSeconds: 60         # antes 30
+      HealthCheckTimeoutSeconds: 15          # antes 10
+      HealthyThresholdCount: 3               # antes 2
+      UnhealthyThresholdCount: 10            # antes 5
       Matcher:
-        HttpCode: 200
+        HttpCode: "200-399"                  # antes 200, aceptamos redirecciones saludables
 
   # 🔹 ALB Listener
   LoadBalancerListener:
@@ -121,12 +121,13 @@ Resources:
           Environment:
             - Name: TABLE_NAME
               Value: BitcoinPositions
+          # ⬇️ Healthcheck interno con mucho margen
           HealthCheck:
             Command: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
-            Interval: 30
-            Timeout: 5
-            Retries: 3
-            StartPeriod: 120
+            Interval: 60         # antes 30
+            Timeout: 10          # antes 5
+            Retries: 5           # antes 3
+            StartPeriod: 300     # antes 120
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -163,7 +164,14 @@ Resources:
         - ContainerName: bitcoin
           ContainerPort: 80
           TargetGroupArn: !Ref TargetGroup
-      HealthCheckGracePeriodSeconds: 60
+      # ⬇️ mucho periodo de gracia para estabilizar
+      HealthCheckGracePeriodSeconds: 420   # antes 60
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
 
   # 🔹 VPC Link for API Gateway
   VpcLink:

@@ -1,9 +1,9 @@
 ### 🌍 Variables globales
-@host = http://<PUBLIC_IP>     # ⬅️ Reemplaza <PUBLIC_IP> por la IP pública de tu ECS Task (sin puerto, usa 80 por defecto)
+@host = 54.173.187.8
 @id = 123456-test              # variable temporal para test de PUT/DELETE
 
 ### 🚀 1. Create a new Bitcoin position
-POST {{host}}/items
+POST http://{{host}}/items
 Content-Type: application/json
 
 {
@@ -14,14 +14,14 @@ Content-Type: application/json
 }
 
 ### 📋 2. Get all positions
-GET {{host}}/items
+GET http://{{host}}/items
 
 ### 🔍 3. Get position by ID
 # 🟡 Reemplaza {{id}} con un ID real obtenido del GET anterior
-GET {{host}}/items/{{id}}
+GET http://{{host}}/items/{{id}}
 
 ### ✏️ 4. Update position by ID
-PUT {{host}}/items/{{id}}
+PUT http://{{host}}/items/{{id}}
 Content-Type: application/json
 
 {
@@ -32,10 +32,13 @@ Content-Type: application/json
 }
 
 ### ❌ 5. Delete position by ID
-DELETE {{host}}/items/{{id}}
+DELETE http://{{host}}/items/{{id}}
 
 ### 🧭 6. Swagger Documentation (UI)
-GET {{host}}/docs
+GET http://{{host}}/docs
 
 ### 🏠 7. Frontend (HTML interface)
-GET {{host}}/
+GET http://{{host}}/
+
+### 🛠️ 8. Health Check
+GET http://{{host}}/health
