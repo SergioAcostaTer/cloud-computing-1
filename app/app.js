@@ -32,18 +32,28 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: "http://localhost:80",
+                url: `http://localhost:${process.env.PORT || 80}`,
                 description: "Local development server",
-            }
+            },
         ],
     },
     apis: [__filename],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// --- API CRUD ---
+app.use("/docs", swaggerUi.serve, (req, res, next) => {
+    const swaggerDynamicSpec = {
+        ...swaggerSpec,
+        servers: [
+            {
+                url: `${req.protocol}://${req.get("host")}`,
+                description: "Current host",
+            },
+        ],
+    };
+    swaggerUi.setup(swaggerDynamicSpec)(req, res, next);
+});
 
 /**
  * @swagger
@@ -54,7 +64,7 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *       properties:
  *         id:
  *           type: string
- *           example: "a1b2c3d4"
+ *           example: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
  *         symbol:
  *           type: string
  *           example: "BTCUSDT"
@@ -65,10 +75,15 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *           type: string
  *           enum: [buy, sell]
  *           example: buy
+ *         entry:
+ *           type: number
+ *           example: 26500.25
  *         date:
  *           type: string
  *           example: "2025-10-12"
  */
+
+// --- API CRUD ---
 
 /**
  * @swagger
@@ -79,6 +94,12 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *     responses:
  *       200:
  *         description: List of all positions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Position'
  */
 app.get("/items", async (req, res) => {
     try {
@@ -104,12 +125,19 @@ app.get("/items", async (req, res) => {
  *     responses:
  *       200:
  *         description: Found item
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Position'
+ *       404:
+ *         description: Not found
  */
 app.get("/items/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const data = await dynamo.get({ TableName: TABLE_NAME, Key: { id } }).promise();
-        res.json(data.Item || {});
+        if (!data.Item) return res.status(404).json({ message: "Item not found" });
+        res.json(data.Item);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -117,21 +145,32 @@ app.get("/items/:id", async (req, res) => {
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Position:
- *       type: object
- *       properties:
- *         id: { type: string, example: "a1b2c3d4" }
- *         symbol: { type: string, example: "BTCUSDT" }
- *         quantity: { type: number, example: 0.5 }
- *         type: { type: string, enum: [buy, sell], example: buy }
- *         entry: { type: number, example: 26500.25 }
- *         date: { type: string, example: "2025-10-12" }
+ * /items:
+ *   post:
+ *     summary: Create a new Bitcoin position
+ *     tags: [Positions]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Position'
+ *     responses:
+ *       201:
+ *         description: Created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Position'
+ *       400:
+ *         description: Invalid input
  */
 app.post("/items", async (req, res) => {
     try {
         const { symbol, quantity, type, entry, date } = req.body;
+        if (!symbol || !quantity || !type || !date) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
         const item = { id: uuidv4(), symbol, quantity, type, entry, date };
         await dynamo.put({ TableName: TABLE_NAME, Item: item }).promise();
         res.status(201).json(item);
@@ -144,37 +183,29 @@ app.post("/items", async (req, res) => {
  * @swagger
  * /items/{id}:
  *   put:
- *    summary: Update a position by ID
- *   tags: [Positions]
- *  parameters:
- *      - in: path
- *        name: id
+ *     summary: Update an existing position
+ *     tags: [Positions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
  *       required: true
- *       schema:
- *        type: string
- *    requestBody:
- *     required: true
- *    content:
- *      application/json:
- *       schema:
- *        $ref: '#/components/schemas/Position'
- *   responses:
- *    200:
- *    description: Updated item
- *      content:
- *       application/json:
- *       schema:
- *        $ref: '#/components/schemas/Position'
- *      500:
- *      description: Server error
  *       content:
- *      application/json:
- *      schema:
- *       type: object
- *      properties:
- *        error:
- *         type: string
- *        example: "Error message"
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Position'
+ *     responses:
+ *       200:
+ *         description: Updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Position'
+ *       404:
+ *         description: Item not found
  */
 app.put("/items/:id", async (req, res) => {
     try {
@@ -200,7 +231,6 @@ app.put("/items/:id", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
 
 /**
  * @swagger
@@ -242,7 +272,7 @@ app.get("/health", (req, res) => {
     res.json({
         status: "healthy",
         timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+        uptime: process.uptime(),
     });
 });
 
@@ -252,4 +282,6 @@ app.get("*", (req, res) => {
 });
 
 const PORT = process.env.PORT || 80;
-app.listen(PORT, () => console.log(`✅ App running on port ${PORT} (Docs: http://localhost:${PORT}/docs)  🚀`));
+app.listen(PORT, () =>
+    console.log(`✅ App running on port ${PORT} (Docs: http://localhost:${PORT}/docs) 🚀`)
+);
