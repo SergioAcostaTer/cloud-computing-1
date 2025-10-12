@@ -8,7 +8,6 @@
 #   make deploy      -> Force ECS to use latest image
 #   make all         -> Build, push, and deploy in one command
 # ===============================
-
 REGION = us-east-1
 ACCOUNT_ID = 992382582640
 REPO_NAME = bitcoin-crud

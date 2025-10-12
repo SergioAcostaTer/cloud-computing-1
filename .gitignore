@@ -4,3 +4,4 @@ npm-debug.log
 .gitignore
 .env
 .DS_Store
+package-lock.json
