@@ -129,7 +129,6 @@ app.get("/items/:id", async (req, res) => {
  *         entry: { type: number, example: 26500.25 }
  *         date: { type: string, example: "2025-10-12" }
  */
-
 app.post("/items", async (req, res) => {
     try {
         const { symbol, quantity, type, entry, date } = req.body;
@@ -141,6 +140,42 @@ app.post("/items", async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /items/{id}:
+ *   put:
+ *    summary: Update a position by ID
+ *   tags: [Positions]
+ *  parameters:
+ *      - in: path
+ *        name: id
+ *       required: true
+ *       schema:
+ *        type: string
+ *    requestBody:
+ *     required: true
+ *    content:
+ *      application/json:
+ *       schema:
+ *        $ref: '#/components/schemas/Position'
+ *   responses:
+ *    200:
+ *    description: Updated item
+ *      content:
+ *       application/json:
+ *       schema:
+ *        $ref: '#/components/schemas/Position'
+ *      500:
+ *      description: Server error
+ *       content:
+ *      application/json:
+ *      schema:
+ *       type: object
+ *      properties:
+ *        error:
+ *         type: string
+ *        example: "Error message"
+ */
 app.put("/items/:id", async (req, res) => {
     try {
         const { id } = req.params;
