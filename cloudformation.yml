@@ -70,6 +70,12 @@ Resources:
           Environment:
             - Name: TABLE_NAME
               Value: BitcoinPositions
+          HealthCheck:
+            Command: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 10
 
   # 🔹 ECS Service (Fargate)
   Service:

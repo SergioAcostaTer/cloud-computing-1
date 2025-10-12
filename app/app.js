@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(bodyParser.json());
 
-// Servir archivos estáticos (frontend)
+// Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, "public")));
 
 AWS.config.update({ region: process.env.AWS_REGION || "us-east-1" });
@@ -22,22 +22,22 @@ const TABLE_NAME = process.env.TABLE_NAME || "BitcoinPositions";
 
 // 📘 --- Swagger configuration ---
 const swaggerOptions = {
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Bitcoin Positions API",
-      version: "1.0.0",
-      description:
-        "Simple CRUD API for managing Bitcoin positions (buy/sell operations) stored in DynamoDB.",
+    definition: {
+        openapi: "3.0.0",
+        info: {
+            title: "Bitcoin Positions API",
+            version: "1.0.0",
+            description:
+                "Simple CRUD API for managing Bitcoin positions (buy/sell operations) stored in DynamoDB.",
+        },
+        servers: [
+            {
+                url: "http://localhost:80",
+                description: "Local development server",
+            }
+        ],
     },
-    servers: [
-      {
-        url: "http://localhost:3000",
-        description: "Local development server",
-      },
-    ],
-  },
-  apis: [__filename], // scan this file for annotations
+    apis: [__filename],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
@@ -81,12 +81,12 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *         description: List of all positions
  */
 app.get("/items", async (req, res) => {
-  try {
-    const data = await dynamo.scan({ TableName: TABLE_NAME }).promise();
-    res.json(data.Items);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const data = await dynamo.scan({ TableName: TABLE_NAME }).promise();
+        res.json(data.Items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 /**
@@ -106,13 +106,13 @@ app.get("/items", async (req, res) => {
  *         description: Found item
  */
 app.get("/items/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = await dynamo.get({ TableName: TABLE_NAME, Key: { id } }).promise();
-    res.json(data.Item || {});
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { id } = req.params;
+        const data = await dynamo.get({ TableName: TABLE_NAME, Key: { id } }).promise();
+        res.json(data.Item || {});
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 /**
@@ -131,39 +131,39 @@ app.get("/items/:id", async (req, res) => {
  */
 
 app.post("/items", async (req, res) => {
-  try {
-    const { symbol, quantity, type, entry, date } = req.body;
-    const item = { id: uuidv4(), symbol, quantity, type, entry, date };
-    await dynamo.put({ TableName: TABLE_NAME, Item: item }).promise();
-    res.status(201).json(item);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { symbol, quantity, type, entry, date } = req.body;
+        const item = { id: uuidv4(), symbol, quantity, type, entry, date };
+        await dynamo.put({ TableName: TABLE_NAME, Item: item }).promise();
+        res.status(201).json(item);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.put("/items/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { symbol, quantity, type, entry, date } = req.body;
-    const params = {
-      TableName: TABLE_NAME,
-      Key: { id },
-      UpdateExpression:
-        "set symbol=:s, quantity=:q, type=:t, entry=:e, date=:d",
-      ExpressionAttributeValues: {
-        ":s": symbol,
-        ":q": quantity,
-        ":t": type,
-        ":e": entry,
-        ":d": date,
-      },
-      ReturnValues: "ALL_NEW",
-    };
-    const result = await dynamo.update(params).promise();
-    res.json(result.Attributes);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { id } = req.params;
+        const { symbol, quantity, type, entry, date } = req.body;
+        const params = {
+            TableName: TABLE_NAME,
+            Key: { id },
+            UpdateExpression:
+                "set symbol=:s, quantity=:q, type=:t, entry=:e, date=:d",
+            ExpressionAttributeValues: {
+                ":s": symbol,
+                ":q": quantity,
+                ":t": type,
+                ":e": entry,
+                ":d": date,
+            },
+            ReturnValues: "ALL_NEW",
+        };
+        const result = await dynamo.update(params).promise();
+        res.json(result.Attributes);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 
@@ -184,18 +184,36 @@ app.put("/items/:id", async (req, res) => {
  *         description: Deleted successfully
  */
 app.delete("/items/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await dynamo.delete({ TableName: TABLE_NAME, Key: { id } }).promise();
-    res.json({ deleted: id });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { id } = req.params;
+        await dynamo.delete({ TableName: TABLE_NAME, Key: { id } }).promise();
+        res.json({ deleted: id });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// Fallback para SPA o index.html
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check endpoint
+ *     tags: [System]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ */
+app.get("/health", (req, res) => {
+    res.json({
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
+// Fallback for SPA (Single Page Application)
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+    res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 const PORT = process.env.PORT || 80;
