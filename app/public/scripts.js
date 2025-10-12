@@ -11,243 +11,247 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 
 // ========== DOM ELEMENTS ==========
 const elements = {
-  // Navigation
-  connectionStatus: document.getElementById("connection-status"),
-  
-  // Ticker
-  currentPrice: document.getElementById("current-price"),
-  priceChange: document.getElementById("price-change"),
-  high24h: document.getElementById("high-24h"),
-  low24h: document.getElementById("low-24h"),
-  volume24h: document.getElementById("volume-24h"),
-  
-  // Form
-  form: document.getElementById("position-form"),
-  entryInput: document.getElementById("entry"),
-  quantityInput: document.getElementById("quantity"),
-  typeInput: document.getElementById("type"),
-  
-  // Table
-  positionsBody: document.getElementById("positions-body"),
-  positionsCount: document.getElementById("positions-count"),
-  totalPnl: document.getElementById("total-pnl"),
-  
-  // Toast
-  toastContainer: document.getElementById("toast-container"),
+    // Navigation
+    connectionStatus: document.getElementById("connection-status"),
+
+    // Ticker
+    currentPrice: document.getElementById("current-price"),
+    priceChange: document.getElementById("price-change"),
+    high24h: document.getElementById("high-24h"),
+    low24h: document.getElementById("low-24h"),
+    volume24h: document.getElementById("volume-24h"),
+
+    // Form
+    form: document.getElementById("position-form"),
+    entryInput: document.getElementById("entry"),
+    quantityInput: document.getElementById("quantity"),
+    typeInput: document.getElementById("type"),
+
+    // Table
+    positionsBody: document.getElementById("positions-body"),
+    positionsCount: document.getElementById("positions-count"),
+    totalPnl: document.getElementById("total-pnl"),
+
+    // Toast
+    toastContainer: document.getElementById("toast-container"),
 };
 
 // ========== WEBSOCKET CONNECTION ==========
 function connectWebSocket() {
-  ws = new WebSocket(WS_URL);
-  
-  ws.onopen = () => {
-    console.log("✅ WebSocket connected to Binance");
-    reconnectAttempts = 0;
-    updateConnectionStatus(true);
-  };
-  
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    updateTickerData(data);
-  };
-  
-  ws.onerror = (error) => {
-    console.error("❌ WebSocket error:", error);
-    updateConnectionStatus(false);
-  };
-  
-  ws.onclose = () => {
-    console.warn("⚠️ WebSocket disconnected");
-    updateConnectionStatus(false);
-    attemptReconnect();
-  };
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+        console.log("✅ WebSocket connected to Binance");
+        reconnectAttempts = 0;
+        updateConnectionStatus(true);
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        updateTickerData(data);
+    };
+
+    ws.onerror = (error) => {
+        console.error("❌ WebSocket error:", error);
+        updateConnectionStatus(false);
+
+        if (reconnectAttempts === 0) {
+            showToast("Lost connection to Binance. Reconnecting...", "error");
+        }
+    };
+
+    ws.onclose = () => {
+        console.warn("⚠️ WebSocket disconnected");
+        updateConnectionStatus(false);
+        attemptReconnect();
+    };
 }
 
 function attemptReconnect() {
-  if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-    reconnectAttempts++;
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-    console.log(`🔄 Reconnecting in ${delay/1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
-    setTimeout(connectWebSocket, delay);
-  } else {
-    showToast("Failed to connect to Binance. Please refresh the page.", "error");
-  }
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+        console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+        setTimeout(connectWebSocket, delay);
+    } else {
+        showToast("Failed to connect to Binance. Please refresh the page.", "error");
+    }
 }
 
 function updateConnectionStatus(connected) {
-  const statusDot = elements.connectionStatus.querySelector(".status-dot");
-  const statusText = elements.connectionStatus.querySelector(".status-text");
-  
-  if (connected) {
-    elements.connectionStatus.classList.add("connected");
-    statusText.textContent = "Live";
-  } else {
-    elements.connectionStatus.classList.remove("connected");
-    statusText.textContent = reconnectAttempts > 0 ? "Reconnecting..." : "Disconnected";
-  }
+    const statusDot = elements.connectionStatus.querySelector(".status-dot");
+    const statusText = elements.connectionStatus.querySelector(".status-text");
+
+    if (connected) {
+        elements.connectionStatus.classList.add("connected");
+        statusText.textContent = "Live";
+    } else {
+        elements.connectionStatus.classList.remove("connected");
+        statusText.textContent = reconnectAttempts > 0 ? "Reconnecting..." : "Disconnected";
+    }
 }
 
 // ========== TICKER UPDATES ==========
 function updateTickerData(data) {
-  const price = parseFloat(data.c);
-  const change = parseFloat(data.P);
-  const high = parseFloat(data.h);
-  const low = parseFloat(data.l);
-  const volume = parseFloat(data.v);
-  
-  // Update global price
-  btcPrice = price;
-  
-  // Update current price with animation
-  if (elements.currentPrice) {
-    const oldPrice = parseFloat(elements.currentPrice.textContent.replace(/[$,]/g, ""));
-    elements.currentPrice.textContent = `$${formatNumber(price, 2)}`;
-    
-    // Flash animation on price change
-    if (oldPrice && oldPrice !== price) {
-      elements.currentPrice.style.animation = "none";
-      setTimeout(() => {
-        elements.currentPrice.style.animation = price > oldPrice 
-          ? "flashGreen 0.5s ease" 
-          : "flashRed 0.5s ease";
-      }, 10);
+    const price = parseFloat(data.c);
+    const change = parseFloat(data.P);
+    const high = parseFloat(data.h);
+    const low = parseFloat(data.l);
+    const volume = parseFloat(data.v);
+
+    // Update global price
+    btcPrice = price;
+
+    // Update current price with animation
+    if (elements.currentPrice) {
+        const oldPrice = parseFloat(elements.currentPrice.textContent.replace(/[$,]/g, ""));
+        elements.currentPrice.textContent = `$${formatNumber(price, 2)}`;
+
+        // Flash animation on price change
+        if (oldPrice && oldPrice !== price) {
+            elements.currentPrice.style.animation = "none";
+            setTimeout(() => {
+                elements.currentPrice.style.animation = price > oldPrice
+                    ? "flashGreen 0.5s ease"
+                    : "flashRed 0.5s ease";
+            }, 10);
+        }
     }
-  }
-  
-  // Update price change
-  if (elements.priceChange) {
-    const span = elements.priceChange.querySelector("span");
-    const isNegative = change < 0;
-    
-    elements.priceChange.classList.toggle("negative", isNegative);
-    span.textContent = `${change > 0 ? "+" : ""}${change.toFixed(2)}%`;
-  }
-  
-  // Update 24h stats
-  if (elements.high24h) elements.high24h.textContent = `$${formatNumber(high, 2)}`;
-  if (elements.low24h) elements.low24h.textContent = `$${formatNumber(low, 2)}`;
-  if (elements.volume24h) elements.volume24h.textContent = `${formatNumber(volume, 0)} BTC`;
-  
-  // Update all positions P&L
-  updateAllPositionsPnL();
+
+    // Update price change
+    if (elements.priceChange) {
+        const span = elements.priceChange.querySelector("span");
+        const isNegative = change < 0;
+
+        elements.priceChange.classList.toggle("negative", isNegative);
+        span.textContent = `${change > 0 ? "+" : ""}${change.toFixed(2)}%`;
+    }
+
+    // Update 24h stats
+    if (elements.high24h) elements.high24h.textContent = `$${formatNumber(high, 2)}`;
+    if (elements.low24h) elements.low24h.textContent = `$${formatNumber(low, 2)}`;
+    if (elements.volume24h) elements.volume24h.textContent = `${formatNumber(volume, 0)} BTC`;
+
+    // Update all positions P&L
+    updateAllPositionsPnL();
 }
 
 // ========== API CALLS ==========
 async function loadPositions() {
-  try {
-    const response = await fetch(`${API_URL}/items`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+        const response = await fetch(`${API_URL}/items`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        positions = await response.json();
+        renderPositions();
+        updateTotalPnL();
+
+    } catch (error) {
+        console.error("Error loading positions:", error);
+        showToast("Failed to load positions. Please try again.", "error");
     }
-    
-    positions = await response.json();
-    renderPositions();
-    updateTotalPnL();
-    
-  } catch (error) {
-    console.error("Error loading positions:", error);
-    showToast("Failed to load positions. Please try again.", "error");
-  }
 }
 
 async function createPosition(positionData) {
-  try {
-    const response = await fetch(`${API_URL}/items`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(positionData),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+        const response = await fetch(`${API_URL}/items`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(positionData),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const newPosition = await response.json();
+        positions.push(newPosition);
+        renderPositions();
+        updateTotalPnL();
+        showToast("Position added successfully! 🎉", "success");
+
+        return newPosition;
+
+    } catch (error) {
+        console.error("Error creating position:", error);
+        showToast("Failed to create position. Please try again.", "error");
+        throw error;
     }
-    
-    const newPosition = await response.json();
-    positions.push(newPosition);
-    renderPositions();
-    updateTotalPnL();
-    showToast("Position added successfully! 🎉", "success");
-    
-    return newPosition;
-    
-  } catch (error) {
-    console.error("Error creating position:", error);
-    showToast("Failed to create position. Please try again.", "error");
-    throw error;
-  }
 }
 
 async function deletePosition(id) {
-  try {
-    const response = await fetch(`${API_URL}/items/${id}`, {
-      method: "DELETE",
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+        const response = await fetch(`${API_URL}/items/${id}`, {
+            method: "DELETE",
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        positions = positions.filter(p => p.id !== id);
+        renderPositions();
+        updateTotalPnL();
+        showToast("Position deleted successfully", "success");
+
+    } catch (error) {
+        console.error("Error deleting position:", error);
+        showToast("Failed to delete position. Please try again.", "error");
     }
-    
-    positions = positions.filter(p => p.id !== id);
-    renderPositions();
-    updateTotalPnL();
-    showToast("Position deleted successfully", "success");
-    
-  } catch (error) {
-    console.error("Error deleting position:", error);
-    showToast("Failed to delete position. Please try again.", "error");
-  }
 }
 
 // ========== FORM HANDLING ==========
 elements.form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  
-  const entry = parseFloat(elements.entryInput.value);
-  const quantity = parseFloat(elements.quantityInput.value);
-  const type = elements.typeInput.value;
-  
-  // Validation
-  if (isNaN(entry) || entry <= 0) {
-    showToast("Please enter a valid entry price", "error");
-    return;
-  }
-  
-  if (isNaN(quantity) || quantity <= 0) {
-    showToast("Please enter a valid quantity", "error");
-    return;
-  }
-  
-  const positionData = {
-    symbol: "BTCUSDT",
-    quantity,
-    type,
-    entry,
-    date: new Date().toISOString(),
-  };
-  
-  try {
-    await createPosition(positionData);
-    elements.form.reset();
-    elements.entryInput.focus();
-  } catch (error) {
-    // Error already handled in createPosition
-  }
+    e.preventDefault();
+
+    const entry = parseFloat(elements.entryInput.value);
+    const quantity = parseFloat(elements.quantityInput.value);
+    const type = elements.typeInput.value;
+
+    // Validation
+    if (isNaN(entry) || entry <= 0) {
+        showToast("Please enter a valid entry price", "error");
+        return;
+    }
+
+    if (isNaN(quantity) || quantity <= 0) {
+        showToast("Please enter a valid quantity", "error");
+        return;
+    }
+
+    const positionData = {
+        symbol: "BTCUSDT",
+        quantity,
+        type,
+        entry,
+        date: new Date().toISOString(),
+    };
+
+    try {
+        await createPosition(positionData);
+        elements.form.reset();
+        elements.entryInput.focus();
+    } catch (error) {
+        // Error already handled in createPosition
+    }
 });
 
 // ========== RENDERING ==========
 function renderPositions() {
-  if (!elements.positionsBody) return;
-  
-  // Update count
-  if (elements.positionsCount) {
-    const count = positions.length;
-    elements.positionsCount.textContent = `${count} position${count !== 1 ? "s" : ""}`;
-  }
-  
-  // Render table
-  if (positions.length === 0) {
-    elements.positionsBody.innerHTML = `
+    if (!elements.positionsBody) return;
+
+    // Update count
+    if (elements.positionsCount) {
+        const count = positions.length;
+        elements.positionsCount.textContent = `${count} position${count !== 1 ? "s" : ""}`;
+    }
+
+    // Render table
+    if (positions.length === 0) {
+        elements.positionsBody.innerHTML = `
       <tr class="empty-state">
         <td colspan="9">
           <div class="empty-content">
@@ -261,27 +265,27 @@ function renderPositions() {
         </td>
       </tr>
     `;
-    return;
-  }
-  
-  elements.positionsBody.innerHTML = positions
-    .map((position) => {
-      const { id, entry = 0, quantity = 0, type, date } = position;
-      const currentPrice = btcPrice || entry;
-      
-      // Calculate P&L
-      const pnl = calculatePnL(entry, currentPrice, quantity, type);
-      const pnlPercent = ((pnl / (entry * quantity)) * 100) || 0;
-      const value = quantity * currentPrice;
-      
-      // Format date
-      const formattedDate = new Date(date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-      
-      return `
+        return;
+    }
+
+    elements.positionsBody.innerHTML = positions
+        .map((position) => {
+            const { id, entry = 0, quantity = 0, type, date } = position;
+            const currentPrice = btcPrice || entry;
+
+            // Calculate P&L
+            const pnl = calculatePnL(entry, currentPrice, quantity, type);
+            const pnlPercent = ((pnl / (entry * quantity)) * 100) || 0;
+            const value = quantity * currentPrice;
+
+            // Format date
+            const formattedDate = new Date(date).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+            });
+
+            return `
         <tr data-id="${id}">
           <td><strong>$${formatNumber(entry, 2)}</strong></td>
           <td id="current-${id}"><strong>$${formatNumber(currentPrice, 2)}</strong></td>
@@ -310,90 +314,90 @@ function renderPositions() {
           </td>
         </tr>
       `;
-    })
-    .join("");
+        })
+        .join("");
 }
 
 function updateAllPositionsPnL() {
-  if (!btcPrice || positions.length === 0) return;
-  
-  positions.forEach((position) => {
-    const { id, entry = 0, quantity = 0, type } = position;
-    const pnl = calculatePnL(entry, btcPrice, quantity, type);
-    const pnlPercent = ((pnl / (entry * quantity)) * 100) || 0;
-    
-    // Update current price cell
-    const currentCell = document.getElementById(`current-${id}`);
-    if (currentCell) {
-      currentCell.innerHTML = `<strong>$${formatNumber(btcPrice, 2)}</strong>`;
-    }
-    
-    // Update P&L cell
-    const pnlCell = document.getElementById(`pnl-${id}`);
-    if (pnlCell) {
-      pnlCell.textContent = `${pnl >= 0 ? "+" : ""}$${formatNumber(Math.abs(pnl), 2)}`;
-      pnlCell.className = `pnl-cell ${pnl >= 0 ? "positive" : "negative"}`;
-    }
-  });
-  
-  updateTotalPnL();
+    if (!btcPrice || positions.length === 0) return;
+
+    positions.forEach((position) => {
+        const { id, entry = 0, quantity = 0, type } = position;
+        const pnl = calculatePnL(entry, btcPrice, quantity, type);
+        const pnlPercent = ((pnl / (entry * quantity)) * 100) || 0;
+
+        // Update current price cell
+        const currentCell = document.getElementById(`current-${id}`);
+        if (currentCell) {
+            currentCell.innerHTML = `<strong>$${formatNumber(btcPrice, 2)}</strong>`;
+        }
+
+        // Update P&L cell
+        const pnlCell = document.getElementById(`pnl-${id}`);
+        if (pnlCell) {
+            pnlCell.textContent = `${pnl >= 0 ? "+" : ""}$${formatNumber(Math.abs(pnl), 2)}`;
+            pnlCell.className = `pnl-cell ${pnl >= 0 ? "positive" : "negative"}`;
+        }
+    });
+
+    updateTotalPnL();
 }
 
 function updateTotalPnL() {
-  if (!elements.totalPnl) return;
-  
-  const total = positions.reduce((sum, position) => {
-    const { entry = 0, quantity = 0, type } = position;
-    const currentPrice = btcPrice || entry;
-    return sum + calculatePnL(entry, currentPrice, quantity, type);
-  }, 0);
-  
-  elements.totalPnl.textContent = `${total >= 0 ? "+" : ""}$${formatNumber(Math.abs(total), 2)}`;
-  elements.totalPnl.className = `pnl-value ${total >= 0 ? "" : "negative"}`;
+    if (!elements.totalPnl) return;
+
+    const total = positions.reduce((sum, position) => {
+        const { entry = 0, quantity = 0, type } = position;
+        const currentPrice = btcPrice || entry;
+        return sum + calculatePnL(entry, currentPrice, quantity, type);
+    }, 0);
+
+    elements.totalPnl.textContent = `${total >= 0 ? "+" : ""}$${formatNumber(Math.abs(total), 2)}`;
+    elements.totalPnl.className = `pnl-value ${total >= 0 ? "" : "negative"}`;
 }
 
 // ========== UTILITY FUNCTIONS ==========
 function calculatePnL(entryPrice, currentPrice, quantity, type) {
-  if (type === "buy") {
-    return (currentPrice - entryPrice) * quantity;
-  } else {
-    return (entryPrice - currentPrice) * quantity;
-  }
+    if (type === "buy") {
+        return (currentPrice - entryPrice) * quantity;
+    } else {
+        return (entryPrice - currentPrice) * quantity;
+    }
 }
 
 function formatNumber(num, decimals = 2) {
-  return num.toLocaleString("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+    return num.toLocaleString("en-US", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    });
 }
 
 function showToast(message, type = "success") {
-  const toast = document.createElement("div");
-  toast.className = `toast ${type}`;
-  
-  const icon = type === "success"
-    ? '<svg class="toast-icon" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-    : '<svg class="toast-icon" viewBox="0 0 24 24" fill="none"><path d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  
-  toast.innerHTML = `
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+
+    const icon = type === "success"
+        ? '<svg class="toast-icon" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : '<svg class="toast-icon" viewBox="0 0 24 24" fill="none"><path d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    toast.innerHTML = `
     ${icon}
     <span class="toast-message">${message}</span>
   `;
-  
-  elements.toastContainer.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.style.animation = "slideIn 0.3s ease reverse";
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+
+    elements.toastContainer.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = "slideIn 0.3s ease reverse";
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // ========== GLOBAL FUNCTIONS (for onclick) ==========
 window.handleDelete = async (id) => {
-  if (confirm("Are you sure you want to delete this position?")) {
-    await deletePosition(id);
-  }
+    if (confirm("Are you sure you want to delete this position?")) {
+        await deletePosition(id);
+    }
 };
 
 // ========== ANIMATION STYLES ==========
