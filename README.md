@@ -50,6 +50,7 @@ Aplicación web fullstack para gestionar posiciones de Bitcoin (compra/venta) co
 │  - quantity         │
 │  - type (buy/sell)  │
 │  - date             │
+│  - entry            │
 └─────────────────────┘
 ```
 
@@ -78,6 +79,17 @@ Aplicación web fullstack para gestionar posiciones de Bitcoin (compra/venta) co
 │       └── styles.css         # Estilos CSS
 └── README.md
 ```
+
+### Tabla DynamoDB `BitcoinPositions`
+
+| Atributo | Tipo | Descripción |
+|-----------|------|-------------|
+| id | string | Identificador único |
+| symbol | string | Par de trading (BTCUSDT) |
+| quantity | number | Cantidad en BTC |
+| type | string | Tipo de operación (buy/sell) |
+| entry | number | Precio de compra/venta |
+| date | string | Fecha ISO de la operación |
 
 ---
 
@@ -168,7 +180,8 @@ aws ec2 describe-network-interfaces --network-interface-ids <ENI_ID> --region us
   "symbol": "BTCUSDT",
   "quantity": 0.5,
   "type": "buy",
-  "date": "2025-10-12"
+  "date": "2025-10-12",
+  "entry": 45000.00
 }
 ```
 
@@ -180,7 +193,8 @@ aws ec2 describe-network-interfaces --network-interface-ids <ENI_ID> --region us
   "symbol": "BTCUSDT",
   "quantity": 0.5,
   "type": "buy",
-  "date": "2025-10-12"
+  "date": "2025-10-12",
+  "entry": 45000.00
 }
 ```
 
@@ -217,7 +231,7 @@ curl http://<PUBLIC_IP>/items/<ID>
 # Actualizar
 curl -X PUT http://<PUBLIC_IP>/items/<ID> \
   -H "Content-Type: application/json" \
-  -d '{"symbol":"BTCUSDT","quantity":1.0,"type":"sell","date":"2025-10-13"}'
+  -d '{"symbol":"BTCUSDT","quantity":1.0,"type":"sell","date":"2025-10-13","entry":45000.00}'
 
 # Eliminar
 curl -X DELETE http://<PUBLIC_IP>/items/<ID>

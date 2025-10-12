@@ -73,33 +73,6 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 /**
  * @swagger
  * /items:
- *   post:
- *     summary: Create a new Bitcoin position
- *     tags: [Positions]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Position'
- *     responses:
- *       201:
- *         description: Created successfully
- */
-app.post("/items", async (req, res) => {
-  try {
-    const { symbol, quantity, type, date } = req.body;
-    const item = { id: uuidv4(), symbol, quantity, type, date };
-    await dynamo.put({ TableName: TABLE_NAME, Item: item }).promise();
-    res.status(201).json(item);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/**
- * @swagger
- * /items:
  *   get:
  *     summary: Get all Bitcoin positions
  *     tags: [Positions]
@@ -144,38 +117,44 @@ app.get("/items/:id", async (req, res) => {
 
 /**
  * @swagger
- * /items/{id}:
- *   put:
- *     summary: Update a position
- *     tags: [Positions]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Position'
- *     responses:
- *       200:
- *         description: Updated successfully
+ * components:
+ *   schemas:
+ *     Position:
+ *       type: object
+ *       properties:
+ *         id: { type: string, example: "a1b2c3d4" }
+ *         symbol: { type: string, example: "BTCUSDT" }
+ *         quantity: { type: number, example: 0.5 }
+ *         type: { type: string, enum: [buy, sell], example: buy }
+ *         entry: { type: number, example: 26500.25 }
+ *         date: { type: string, example: "2025-10-12" }
  */
+
+app.post("/items", async (req, res) => {
+  try {
+    const { symbol, quantity, type, entry, date } = req.body;
+    const item = { id: uuidv4(), symbol, quantity, type, entry, date };
+    await dynamo.put({ TableName: TABLE_NAME, Item: item }).promise();
+    res.status(201).json(item);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.put("/items/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { symbol, quantity, type, date } = req.body;
+    const { symbol, quantity, type, entry, date } = req.body;
     const params = {
       TableName: TABLE_NAME,
       Key: { id },
-      UpdateExpression: "set symbol=:s, quantity=:q, type=:t, date=:d",
+      UpdateExpression:
+        "set symbol=:s, quantity=:q, type=:t, entry=:e, date=:d",
       ExpressionAttributeValues: {
         ":s": symbol,
         ":q": quantity,
         ":t": type,
+        ":e": entry,
         ":d": date,
       },
       ReturnValues: "ALL_NEW",
@@ -186,6 +165,7 @@ app.put("/items/:id", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 /**
  * @swagger

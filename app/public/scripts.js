@@ -69,10 +69,12 @@ async function deletePosition(id) {
 // --- UI updates ---
 function updatePL() {
   positions.forEach((p, i) => {
-    const pl =
-      p.type === "buy"
-        ? (btcPrice - (p.entry || 0)) * p.quantity
-        : ((p.entry || 0) - btcPrice) * p.quantity;
+    const entry = p.entry || 0;
+    const qty = p.quantity || 0;
+    const pl = p.type === "buy"
+      ? (btcPrice - entry) * qty
+      : (entry - btcPrice) * qty;
+
     const cell = document.getElementById(`pl-${i}`);
     if (cell) {
       cell.textContent = pl.toFixed(2);
@@ -82,6 +84,7 @@ function updatePL() {
     if (cur) cur.textContent = btcPrice.toFixed(2);
   });
 }
+
 
 function renderPositions() {
   positionsTable.innerHTML = positions
