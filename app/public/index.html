@@ -1,132 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>BTC Live Tracker & Positions</title>
-<style>
-  body { font-family: system-ui, sans-serif; background:#0d1117; color:#e6edf3; margin:0; }
-  header { background:#161b22; padding:1rem 2rem; text-align:center; border-bottom:1px solid #30363d; }
-  h1 { color:#58a6ff; margin:0; }
-  main { max-width:800px; margin:2rem auto; background:#161b22; padding:2rem; border-radius:1rem; box-shadow:0 0 20px rgba(0,0,0,0.5);}
-  .ticker { font-size:1.5rem; margin-bottom:1rem; color:#58a6ff; }
-  .green { color:#3fb950; }
-  .red { color:#f85149; }
-  form { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; }
-  input, select, button { padding:0.5rem; border:none; border-radius:0.5rem; font-size:1rem; }
-  input, select { flex:1; min-width:120px; }
-  button { background:#238636; color:white; cursor:pointer; transition:0.3s; }
-  button:hover { background:#3fb950; color:#0d1117; }
-  table { width:100%; border-collapse:collapse; margin-top:1rem; }
-  th, td { padding:0.75rem; text-align:center; border-bottom:1px solid #30363d; }
-  tr:hover { background:#21262d; }
-  .profit { color:#3fb950; font-weight:bold; }
-  .loss { color:#f85149; font-weight:bold; }
-</style>
-</head>
-<body>
-<header>
-  <h1>BTC Live Tracker & Profit/Loss</h1>
-</header>
-<main>
-  <div id="ticker" class="ticker">Connecting to Binance...</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bitcoin Tracker ⚡</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="title">
+          <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=029" alt="BTC" />
+          <h1>Bitcoin Tracker</h1>
+        </div>
+        <div id="ticker" class="ticker">Connecting to Binance...</div>
+      </header>
 
-  <form id="form">
-    <input id="entry" type="number" placeholder="Entry Price" required />
-    <input id="quantity" type="number" placeholder="Quantity (BTC)" required />
-    <select id="type">
-      <option value="buy">Buy</option>
-      <option value="sell">Sell</option>
-    </select>
-    <button type="submit">Add Position</button>
-  </form>
+      <main class="card glass">
+        <h2>📊 Manage Positions</h2>
 
-  <table>
-    <thead>
-      <tr><th>Entry</th><th>Quantity</th><th>Type</th><th>Current</th><th>P/L (USDT)</th><th></th></tr>
-    </thead>
-    <tbody id="positions"></tbody>
-  </table>
-</main>
+        <form id="form" class="form">
+          <input id="entry" type="number" step="0.01" placeholder="Entry Price (USDT)" required />
+          <input id="quantity" type="number" step="0.0001" placeholder="Quantity (BTC)" required />
+          <select id="type">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+          </select>
+          <button type="submit" class="btn-primary">Add</button>
+        </form>
 
-<script>
-let btcPrice = 0;
-const tickerDiv = document.getElementById("ticker");
-const positionsTable = document.getElementById("positions");
-const form = document.getElementById("form");
-let positions = [];
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Entry</th>
+              <th>Qty</th>
+              <th>Type</th>
+              <th>Current</th>
+              <th>P/L (USDT)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="positions"></tbody>
+        </table>
+      </main>
 
-const socket = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@ticker");
+      <footer class="footer">© 2025 Bitcoin Tracker — Sergio Acosta Quintana</footer>
+    </div>
 
-socket.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  btcPrice = parseFloat(data.c);
-  const change = parseFloat(data.P);
-  const color = change >= 0 ? "green" : "red";
-  tickerDiv.innerHTML = `BTC/USDT: <span class="${color}">${btcPrice.toFixed(2)}</span> 
-    (<span class="${color}">${change.toFixed(2)}%</span>)`;
-  updatePL();
-};
-
-socket.onopen = () => {
-  tickerDiv.textContent = "Connected to Binance ✅";
-};
-
-socket.onclose = () => {
-  tickerDiv.textContent = "Disconnected from Binance ❌";
-};
-
-// Add position
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const entry = parseFloat(entryInput.value);
-  const quantity = parseFloat(quantityInput.value);
-  const type = typeInput.value;
-  positions.push({ entry, quantity, type });
-  form.reset();
-  renderPositions();
-});
-
-// Delete position
-function deletePosition(index){
-  positions.splice(index,1);
-  renderPositions();
-}
-
-// Update P/L
-function updatePL(){
-  positions.forEach((p, i) => {
-    const pl = p.type === "buy"
-      ? (btcPrice - p.entry) * p.quantity
-      : (p.entry - btcPrice) * p.quantity;
-    const cell = document.getElementById(`pl-${i}`);
-    if(cell){
-      cell.textContent = pl.toFixed(2);
-      cell.className = pl >= 0 ? "profit" : "loss";
-    }
-    const cur = document.getElementById(`cur-${i}`);
-    if(cur) cur.textContent = btcPrice.toFixed(2);
-  });
-}
-
-// Render table
-function renderPositions(){
-  positionsTable.innerHTML = positions.map((p, i) => `
-    <tr>
-      <td>${p.entry.toFixed(2)}</td>
-      <td>${p.quantity}</td>
-      <td>${p.type}</td>
-      <td id="cur-${i}">-</td>
-      <td id="pl-${i}" class="profit">-</td>
-      <td><button onclick="deletePosition(${i})">❌</button></td>
-    </tr>
-  `).join("");
-  updatePL();
-}
-
-// Shortcuts to inputs
-const entryInput = document.getElementById("entry");
-const quantityInput = document.getElementById("quantity");
-const typeInput = document.getElementById("type");
-</script>
-</body>
+    <script src="scripts.js"></script>
+  </body>
 </html>
