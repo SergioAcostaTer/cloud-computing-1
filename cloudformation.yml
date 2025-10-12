@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "🚀 Bitcoin Tracker – ECS Fargate + DynamoDB + LabRole + Manual Network (Port 80)"
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: "Select an existing VPC (usually the default one)"
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: "Select a public subnet inside that VPC"
+  ECRImage:
+    Type: String
+    Description: "ECR image URL (e.g. 992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest)"
+
+Resources:
+
+  # 🔹 DynamoDB table
+  DynamoTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BitcoinPositions
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  # 🔹 Security Group (open port 80)
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP (port 80)
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: BitcoinAppSecurityGroup
+
+  # 🔹 ECS Cluster
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: BitcoinCluster
+
+  # 🔹 Task Definition (uses LabRole)
+  TaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: BitcoinTask
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: arn:aws:iam::992382582640:role/LabRole
+      TaskRoleArn: arn:aws:iam::992382582640:role/LabRole
+      ContainerDefinitions:
+        - Name: bitcoin
+          Image: !Ref ECRImage
+          PortMappings:
+            - ContainerPort: 80
+          Environment:
+            - Name: TABLE_NAME
+              Value: BitcoinPositions
+
+  # 🔹 ECS Service (Fargate)
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref Cluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      TaskDefinition: !Ref TaskDef
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref SubnetId
+          SecurityGroups:
+            - !Ref AppSecurityGroup
+
+Outputs:
+  DynamoDBTable:
+    Description: "DynamoDB Table created for storing positions"
+    Value: !Ref DynamoTable
+  ECSService:
+    Description: "ECS Service (check task Public IP in console)"
+    Value: !Ref Service
+  SecurityGroupId:
+    Description: "Auto-created Security Group ID"
+    Value: !Ref AppSecurityGroup
+  Notes:
+    Description: "📘 Access app at ECS task Public IP (port 80)"
+    Value: "Example: http://<Public-IP>"
