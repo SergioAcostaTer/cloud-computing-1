@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "🚀 Bitcoin Tracker – ECS Fargate + DynamoDB + LabRole + Manual Network (Port 80)"
+Description: "🚀 Bitcoin Tracker – ECS Fargate + DynamoDB + API Gateway + LabRole"
 
 Parameters:
   VpcId:
@@ -27,11 +27,11 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-  # 🔹 Security Group (open port 80)
+  # 🔹 Security Group (allow from VPC + ALB)
   AppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP (port 80)
+      GroupDescription: Allow HTTP from VPC and Load Balancer
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -44,6 +44,55 @@ Resources:
       Tags:
         - Key: Name
           Value: BitcoinAppSecurityGroup
+
+  # 🔹 Application Load Balancer
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: BitcoinTrackerALB
+      Type: application
+      Scheme: internet-facing
+      IpAddressType: ipv4
+      Subnets:
+        - !Ref SubnetId
+      SecurityGroups:
+        - !Ref AppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: BitcoinTrackerALB
+
+  # 🔹 Target Group for ECS Tasks
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: BitcoinTrackerTG
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      TargetType: ip
+      HealthCheckEnabled: true
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: 200
+      Tags:
+        - Key: Name
+          Value: BitcoinTrackerTG
+
+  # 🔹 ALB Listener
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
 
   # 🔹 ECS Cluster
   Cluster:
@@ -67,6 +116,7 @@ Resources:
           Image: !Ref ECRImage
           PortMappings:
             - ContainerPort: 80
+              Protocol: tcp
           Environment:
             - Name: TABLE_NAME
               Value: BitcoinPositions
@@ -76,12 +126,27 @@ Resources:
             Timeout: 5
             Retries: 3
             StartPeriod: 10
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: bitcoin-tracker
 
-  # 🔹 ECS Service (Fargate)
+  # 🔹 CloudWatch Log Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/bitcoin-tracker
+      RetentionInDays: 7
+
+  # 🔹 ECS Service (with Load Balancer)
   Service:
     Type: AWS::ECS::Service
+    DependsOn: LoadBalancerListener
     Properties:
       Cluster: !Ref Cluster
+      ServiceName: BitcoinTrackerService
       DesiredCount: 1
       LaunchType: FARGATE
       TaskDefinition: !Ref TaskDef
@@ -92,17 +157,116 @@ Resources:
             - !Ref SubnetId
           SecurityGroups:
             - !Ref AppSecurityGroup
+      LoadBalancers:
+        - ContainerName: bitcoin
+          ContainerPort: 80
+          TargetGroupArn: !Ref TargetGroup
+      HealthCheckGracePeriodSeconds: 60
+
+  # 🔹 VPC Link for API Gateway
+  VpcLink:
+    Type: AWS::ApiGatewayV2::VpcLink
+    Properties:
+      Name: BitcoinTrackerVpcLink
+      SubnetIds:
+        - !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref AppSecurityGroup
+
+  # 🔹 HTTP API Gateway (v2)
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: BitcoinTrackerAPI
+      Description: Bitcoin Tracker REST API with ECS Backend
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - "*"
+
+  # 🔹 API Gateway Integration with ALB
+  HttpApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: HTTP_PROXY
+      IntegrationUri: !Ref LoadBalancerListener
+      IntegrationMethod: ANY
+      ConnectionType: VPC_LINK
+      ConnectionId: !Ref VpcLink
+      PayloadFormatVersion: "1.0"
+
+  # 🔹 API Gateway Route (catch-all)
+  HttpApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "$default"
+      Target: !Sub "integrations/${HttpApiIntegration}"
+
+  # 🔹 API Gateway Stage
+  HttpApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: "$default"
+      AutoDeploy: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiLogGroup.Arn
+        Format: $context.requestId $context.error.message $context.error.messageString
+
+  # 🔹 CloudWatch Log Group for API Gateway
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/apigateway/bitcoin-tracker
+      RetentionInDays: 7
 
 Outputs:
   DynamoDBTable:
     Description: "DynamoDB Table created for storing positions"
     Value: !Ref DynamoTable
+    
+  LoadBalancerDNS:
+    Description: "Application Load Balancer DNS (for direct access)"
+    Value: !GetAtt LoadBalancer.DNSName
+    
+  ApiGatewayEndpoint:
+    Description: "🎯 API Gateway URL (USE THIS for your application)"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    
+  ApiGatewayId:
+    Description: "API Gateway ID"
+    Value: !Ref HttpApi
+    
+  VpcLinkId:
+    Description: "VPC Link ID"
+    Value: !Ref VpcLink
+    
   ECSService:
-    Description: "ECS Service (check task Public IP in console)"
-    Value: !Ref Service
+    Description: "ECS Service Name"
+    Value: !GetAtt Service.Name
+    
   SecurityGroupId:
-    Description: "Auto-created Security Group ID"
+    Description: "Security Group ID"
     Value: !Ref AppSecurityGroup
+    
+  SwaggerDocs:
+    Description: "📘 Swagger Documentation URL"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/docs"
+    
+  WebInterface:
+    Description: "🌐 Web Interface URL"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    
   Notes:
-    Description: "📘 Access app at ECS task Public IP (port 80)"
-    Value: "Example: http://<Public-IP>"
+    Description: "📝 Important Notes"
+    Value: "Access your application via the API Gateway URL. The ALB is used internally for load balancing."
