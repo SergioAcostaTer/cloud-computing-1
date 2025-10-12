@@ -211,11 +211,15 @@ app.put("/items/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const { symbol, quantity, type, entry, date } = req.body;
+
         const params = {
             TableName: TABLE_NAME,
             Key: { id },
             UpdateExpression:
-                "set symbol=:s, quantity=:q, type=:t, entry=:e, date=:d",
+                "set symbol = :s, quantity = :q, #t = :t, entry = :e, date = :d",
+            ExpressionAttributeNames: {
+                "#t": "type"
+            },
             ExpressionAttributeValues: {
                 ":s": symbol,
                 ":q": quantity,
@@ -225,12 +229,14 @@ app.put("/items/:id", async (req, res) => {
             },
             ReturnValues: "ALL_NEW",
         };
+
         const result = await dynamo.update(params).promise();
         res.json(result.Attributes);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 /**
  * @swagger
