@@ -183,7 +183,7 @@ Resources:
       ResourceId: !Ref ItemsResource
       HttpMethod: POST
       AuthorizationType: NONE
-      ApiKeyRequired: true
+      ApiKeyRequired: false
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: POST
@@ -198,7 +198,7 @@ Resources:
       ResourceId: !Ref ItemsResource
       HttpMethod: GET
       AuthorizationType: NONE
-      ApiKeyRequired: true
+      ApiKeyRequired: false
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: GET
@@ -213,7 +213,7 @@ Resources:
       ResourceId: !Ref ItemResource
       HttpMethod: GET
       AuthorizationType: NONE
-      ApiKeyRequired: true
+      ApiKeyRequired: false
       RequestParameters:
         method.request.path.id: true
       Integration:
@@ -232,7 +232,7 @@ Resources:
       ResourceId: !Ref ItemResource
       HttpMethod: PUT
       AuthorizationType: NONE
-      ApiKeyRequired: true
+      ApiKeyRequired: false
       RequestParameters:
         method.request.path.id: true
       Integration:
@@ -251,7 +251,7 @@ Resources:
       ResourceId: !Ref ItemResource
       HttpMethod: DELETE
       AuthorizationType: NONE
-      ApiKeyRequired: true
+      ApiKeyRequired: false
       RequestParameters:
         method.request.path.id: true
       Integration:
