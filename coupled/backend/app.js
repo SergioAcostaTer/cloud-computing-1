@@ -205,16 +205,19 @@ app.put("/positions/:id", async (req, res) => {
             TableName: TABLE_NAME,
             Key: { id },
             UpdateExpression:
-                "set symbol = :s, quantity = :q, #t = :t, entry = :e, date = :d",
-            ExpressionAttributeNames: { "#t": "type" },
+                "set symbol = :s, quantity = :q, #t = :t, entry = :e, #d = :d",
+            ExpressionAttributeNames: {
+                "#t": "type",
+                "#d": "date"
+            },
             ExpressionAttributeValues: {
                 ":s": symbol,
                 ":q": quantity,
                 ":t": type,
                 ":e": entry,
-                ":d": date,
+                ":d": date
             },
-            ReturnValues: "ALL_NEW",
+            ReturnValues: "ALL_NEW"
         };
         const result = await dynamo.update(params).promise();
         res.json(result.Attributes);
