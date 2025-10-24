@@ -246,24 +246,24 @@ Resources:
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-    DeletePosition:
-      Type: AWS::ApiGateway::Method
-      Properties:
-        RestApiId: !Ref RestAPI
-        ResourceId: !Ref PositionResource
-        HttpMethod: DELETE
-        AuthorizationType: NONE
-        ApiKeyRequired: true
+  DeletePosition:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref PositionResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      RequestParameters:
+        method.request.path.id: true
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: DELETE
+        Uri: !Sub "http://${NLB.DNSName}:80/positions/{id}"
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref VPCLink
         RequestParameters:
-          method.request.path.id: true
-        Integration:
-          Type: HTTP_PROXY
-          IntegrationHttpMethod: DELETE
-          Uri: !Sub "http://${NLB.DNSName}:80/positions/{id}"
-          ConnectionType: VPC_LINK
-          ConnectionId: !Ref VPCLink
-          RequestParameters:
-            integration.request.path.id: method.request.path.id
+          integration.request.path.id: method.request.path.id
 
 # ------------------------------------------------------------
 # 🌍 PUBLIC /DOCS ENDPOINT (NO KEY)
@@ -395,6 +395,7 @@ Resources:
       - PutPosition
       - DeletePosition
       - GetDocs
+      - GetDocsSlash
       - OptionsPositions
       - OptionsPosition
       - OptionsDocs
