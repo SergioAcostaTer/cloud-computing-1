@@ -6,9 +6,9 @@
 import AWS from "aws-sdk";
 import bodyParser from "body-parser";
 import express from "express";
-import { dirname } from 'path';
+import { dirname } from "path";
 import swaggerJsdoc from "swagger-jsdoc";
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,7 +38,6 @@ const TABLE_NAME = process.env.TABLE_NAME || "BitcoinPositions";
 // ------------------------------------------------------------
 // 📘 Swagger configuration
 // ------------------------------------------------------------
-
 const swaggerBase =
     process.env.SWAGGER_BASE_URL ||
     `https://${process.env.API_ID}.execute-api.${process.env.AWS_REGION}.amazonaws.com/prod`;
@@ -57,7 +56,6 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-
 
 /**
  * @swagger
@@ -198,20 +196,19 @@ app.put("/positions/:id", async (req, res) => {
         const params = {
             TableName: TABLE_NAME,
             Key: { id },
-            UpdateExpression:
-                "set symbol = :s, quantity = :q, #t = :t, entry = :e, #d = :d",
+            UpdateExpression: "set symbol = :s, quantity = :q, #t = :t, entry = :e, #d = :d",
             ExpressionAttributeNames: {
                 "#t": "type",
-                "#d": "date"
+                "#d": "date",
             },
             ExpressionAttributeValues: {
                 ":s": symbol,
                 ":q": quantity,
                 ":t": type,
                 ":e": entry,
-                ":d": date
+                ":d": date,
             },
-            ReturnValues: "ALL_NEW"
+            ReturnValues: "ALL_NEW",
         };
         const result = await dynamo.update(params).promise();
         res.json(result.Attributes);
@@ -255,19 +252,19 @@ app.delete("/positions/:id", async (req, res) => {
  *     responses:
  *       200:
  *         description: Service is healthy
- *        content:
- *          application/json:
- *            schema:
- *              type: object
- *              properties:
- *                status:
- *                  type: string
- *                timestamp:
- *                  type: string
- *                  format: date-time
- *               uptime:
- *                 type: number
- *                 description: Uptime in seconds
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 uptime:
+ *                   type: number
+ *                   description: Uptime in seconds
  */
 app.get("/health", (_, res) => {
     res.json({
@@ -276,7 +273,6 @@ app.get("/health", (_, res) => {
         uptime: process.uptime(),
     });
 });
-
 
 app.get("/openapi.json", (req, res) => {
     res.setHeader("Content-Type", "application/json");
