@@ -4,7 +4,7 @@ Description: "Bitcoin Positions API — ECS Fargate + API Gateway (API key requi
 Parameters:
   ECRImage:
     Type: String
-    Description: ECR image URI (e.g., 1234567890.dkr.ecr.us-east-1.amazonaws.com/bitcoin-api:latest)
+    Description: ECR image URI (e.g., "992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest")
   VpcId:
     Type: AWS::EC2::VPC::Id
   SubnetIds:
