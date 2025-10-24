@@ -163,12 +163,51 @@ Resources:
       ParentId: !Ref PositionsResource
       PathPart: "{id}"
 
-  DocsResource:
-    Type: AWS::ApiGateway::Resource
+# ------------------------------------------------------------
+# 🌍 PUBLIC ROOT ENDPOINT (SWAGGER DOCS, NO API KEY)
+# ------------------------------------------------------------
+  RootGet:
+    Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
-      ParentId: !GetAtt RestAPI.RootResourceId
-      PathPart: docs
+      ResourceId: !GetAtt RestAPI.RootResourceId
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: GET
+        Uri: !Sub "http://${NLB.DNSName}:80/"
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref VPCLink
+
+  OptionsRoot:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !GetAtt RestAPI.RootResourceId
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
 
 # ------------------------------------------------------------
 # 📦 CRUD METHODS (API KEY REQUIRED)
@@ -261,24 +300,6 @@ Resources:
           integration.request.path.id: method.request.path.id
 
 # ------------------------------------------------------------
-# 🌍 PUBLIC /DOCS ENDPOINT (NO KEY)
-# ------------------------------------------------------------
-  GetDocs:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestAPI
-      ResourceId: !Ref DocsResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      ApiKeyRequired: false
-      Integration:
-        Type: HTTP_PROXY
-        IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80"
-        ConnectionType: VPC_LINK
-        ConnectionId: !Ref VPCLink
-
-# ------------------------------------------------------------
 # 🌐 CORS OPTIONS METHODS
 # ------------------------------------------------------------
   OptionsPositions:
@@ -335,33 +356,6 @@ Resources:
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Headers: true
 
-  OptionsDocs:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestAPI
-      ResourceId: !Ref DocsResource
-      HttpMethod: OPTIONS
-      AuthorizationType: NONE
-      ApiKeyRequired: false
-      Integration:
-        Type: MOCK
-        IntegrationResponses:
-          - StatusCode: 200
-            ResponseParameters:
-              method.response.header.Access-Control-Allow-Origin: "'*'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
-            ResponseTemplates:
-              application/json: ""
-        RequestTemplates:
-          application/json: '{"statusCode": 200}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Origin: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Headers: true
-
 # ------------------------------------------------------------
 # 🚀 DEPLOYMENT + STAGE + API KEY
 # ------------------------------------------------------------
@@ -373,10 +367,10 @@ Resources:
       - GetPosition
       - PutPosition
       - DeletePosition
-      - GetDocs
       - OptionsPositions
       - OptionsPosition
-      - OptionsDocs
+      - RootGet
+      - OptionsRoot
     Properties:
       RestApiId: !Ref RestAPI
       Description: !Sub "Deployment for ${AWS::StackName}"
