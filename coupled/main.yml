@@ -113,7 +113,7 @@ Resources:
       DesiredCount: 1
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: DISABLED
+          AssignPublicIp: ENABLED
           Subnets: !Ref SubnetIds
           SecurityGroups: [!Ref ECSSecurityGroup]
       LoadBalancers:
