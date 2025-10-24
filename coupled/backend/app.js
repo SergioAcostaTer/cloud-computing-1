@@ -6,9 +6,14 @@
 import AWS from "aws-sdk";
 import bodyParser from "body-parser";
 import express from "express";
+import { dirname } from 'path';
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
+import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from "uuid";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 app.use(bodyParser.json());
