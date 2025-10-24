@@ -8,15 +8,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/svg+xml" href="/media/logo.svg" />
+    <link rel="icon" type="image/svg+xml" href="./media/logo.svg" />
   </head>
   <body>
     <!-- API Configuration Modal -->
     <div id="config-modal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>API Configuration</h2>
-          <p>Configure your API endpoint and authentication</p>
+          <div>
+            <h2>API Configuration</h2>
+            <p class="section-subtitle">Configure your API endpoint and authentication</p>
+          </div>
         </div>
         <form id="config-form" class="config-form">
           <div class="form-group">
@@ -38,7 +40,7 @@
     </div>
 
     <!-- Edit Position Modal -->
-    <div id="edit-modal" class="modal" style="display: none;">
+    <div id="edit-modal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h2>Edit Position</h2>
@@ -166,8 +168,10 @@
         <!-- Add Position Form -->
         <section class="form-section">
           <div class="section-header">
-            <h3>Create New Position</h3>
-            <p class="section-subtitle">Add a new buy or sell position to track your portfolio</p>
+            <div>
+              <h3>Create New Position</h3>
+              <p class="section-subtitle">Add a new buy or sell position to track your portfolio</p>
+            </div>
           </div>
           
           <form id="position-form" class="position-form">

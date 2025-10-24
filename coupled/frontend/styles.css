@@ -112,6 +112,31 @@ body {
   gap: 1rem;
 }
 
+.btn-config {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text-tertiary);
+}
+
+.btn-config:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-config svg {
+  width: 20px;
+  height: 20px;
+}
+
 .status-indicator {
   display: flex;
   align-items: center;
@@ -246,6 +271,7 @@ body {
   color: var(--text-primary);
   letter-spacing: -1px;
   font-variant-numeric: tabular-nums;
+  transition: var(--transition);
 }
 
 .price-change {
@@ -391,6 +417,8 @@ body {
 }
 
 input[type="number"],
+input[type="url"],
+input[type="text"],
 .select-input {
   width: 100%;
   padding: 0.875rem 1rem;
@@ -412,14 +440,14 @@ input[type="number"]:has(+ .input-suffix) {
   padding-left: 2rem;
 }
 
-input[type="number"]:focus,
+input:focus,
 .select-input:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(240, 185, 11, 0.1);
 }
 
-input[type="number"]::placeholder {
+input::placeholder {
   color: var(--text-tertiary);
 }
 
@@ -470,22 +498,59 @@ input[type="number"]::placeholder {
   transform: translateY(0);
 }
 
-.btn-danger {
-  background: transparent;
-  color: var(--danger);
-  border: 1px solid var(--danger);
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-}
-
-.btn-danger:hover {
-  background: var(--danger);
-  color: white;
-}
-
 .btn-icon {
   width: 18px;
   height: 18px;
+}
+
+/* Action Buttons */
+.action-cell {
+  padding: 0.75rem 1rem !important;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-action svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-edit {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-edit:hover {
+  background: var(--primary);
+  color: var(--bg-primary);
+}
+
+.btn-delete {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-delete:hover {
+  background: var(--danger);
+  color: white;
 }
 
 /* ========== TABLE ========== */
@@ -541,6 +606,7 @@ input[type="number"]::placeholder {
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .positions-table td {
@@ -548,6 +614,7 @@ input[type="number"]::placeholder {
   border-bottom: 1px solid var(--border-primary);
   font-size: 0.875rem;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .positions-table tbody tr {
@@ -570,16 +637,19 @@ input[type="number"]::placeholder {
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .type-badge.buy {
   background: var(--success-bg);
   color: var(--success);
+  border: 1px solid var(--success);
 }
 
 .type-badge.sell {
   background: var(--danger-bg);
   color: var(--danger);
+  border: 1px solid var(--danger);
 }
 
 .pnl-cell {
@@ -670,6 +740,17 @@ input[type="number"]::placeholder {
   }
 }
 
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+}
+
 .toast.success {
   border-left: 4px solid var(--success);
 }
@@ -742,84 +823,6 @@ input[type="number"]::placeholder {
   color: var(--text-tertiary);
 }
 
-/* ========== RESPONSIVE ========== */
-@media (max-width: 1024px) {
-  .nav-container,
-  .ticker-section,
-  .main-content {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-
-  .current-price {
-    font-size: 2.5rem;
-  }
-
-  .price-change {
-    font-size: 1rem;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .ticker-stats {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .nav-container {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .ticker-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .current-price {
-    font-size: 2rem;
-  }
-
-  .price-display {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .ticker-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .positions-table {
-    font-size: 0.75rem;
-  }
-
-  .positions-table th,
-  .positions-table td {
-    padding: 0.75rem 0.5rem;
-  }
-
-  .toast-container {
-    left: 1rem;
-    right: 1rem;
-  }
-
-  .toast {
-    min-width: auto;
-    width: 100%;
-  }
-}
-
 /* ========== PRICE ANIMATION ========== */
 @keyframes priceUp {
   0% { color: var(--success); transform: scale(1.02); }
@@ -852,38 +855,45 @@ input[type="number"]::placeholder {
   padding: 1.5rem;
 }
 
-.modal.active {
-  display: flex;
-}
-
 .modal-content {
   background: var(--bg-card);
   border: 1px solid var(--border-primary);
   border-radius: 16px;
   box-shadow: var(--shadow-lg);
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   padding: 2rem;
   position: relative;
-  animation: fadeIn 0.3s ease;
+  animation: modalFadeIn 0.3s ease;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-@keyframes fadeIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+@keyframes modalFadeIn {
+  from { 
+    transform: scale(0.95); 
+    opacity: 0; 
+  }
+  to { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-primary);
 }
 
-.modal-header h4 {
-  font-size: 1.125rem;
+.modal-header h2 {
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
+  margin: 0;
 }
 
 .modal-close {
@@ -891,52 +901,38 @@ input[type="number"]::placeholder {
   border: none;
   color: var(--text-tertiary);
   cursor: pointer;
-  font-size: 1.25rem;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: var(--transition);
+  border-radius: 4px;
 }
 
 .modal-close:hover {
-  color: var(--primary);
+  color: var(--danger);
+  background: var(--danger-bg);
 }
 
-.modal-form {
+.modal-close svg {
+  width: 24px;
+  height: 24px;
+}
+
+.config-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-}
-
-/* ========== CONFIG BUTTON ========== */
-.config-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-primary);
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.config-button:hover {
-  background: var(--bg-hover);
-  color: var(--primary);
+  gap: 1.5rem;
 }
 
 /* ========== SCROLLBARS ========== */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -948,13 +944,166 @@ input[type="number"]::placeholder {
   background-color: var(--text-tertiary);
 }
 
-/* ========== RESPONSIVE FIX FOR MODALS ========== */
-@media (max-width: 480px) {
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1024px) {
+  .nav-container,
+  .ticker-section,
+  .main-content {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .current-price {
+    font-size: 2.5rem;
+  }
+
+  .price-change {
+    font-size: 1rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ticker-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .nav-container {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .nav-status {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ticker-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .current-price {
+    font-size: 2rem;
+  }
+
+  .price-display {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .ticker-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .positions-table {
+    font-size: 0.75rem;
+  }
+
+  .positions-table th,
+  .positions-table td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .toast-container {
+    left: 1rem;
+    right: 1rem;
+    top: 4rem;
+  }
+
+  .toast {
+    min-width: auto;
+    width: 100%;
+  }
+
   .modal-content {
+    padding: 1.5rem;
+    max-width: 100%;
+  }
+
+  .modal-header h2 {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-container {
+    padding: 0.75rem 1rem;
+  }
+
+  .ticker-section,
+  .main-content {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .ticker-card,
+  .form-section,
+  .table-section {
     padding: 1.5rem;
   }
 
-  .modal-header h4 {
-    font-size: 1rem;
+  .current-price {
+    font-size: 1.75rem;
+  }
+
+  .price-change {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+  }
+
+  .btn-primary {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9375rem;
+  }
+
+  .crypto-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .ticker-title h2 {
+    font-size: 1.25rem;
+  }
+
+  .positions-table th,
+  .positions-table td {
+    font-size: 0.6875rem;
+    padding: 0.5rem 0.375rem;
+  }
+
+  .type-badge {
+    font-size: 0.625rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .btn-action {
+    width: 32px;
+    height: 32px;
+  }
+
+  .btn-action svg {
+    width: 16px;
+    height: 16px;
   }
 }

@@ -175,7 +175,7 @@ Resources:
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80/"
+        Uri: !Sub "http://${NLB.DNSName}:80/openapi.json"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
 

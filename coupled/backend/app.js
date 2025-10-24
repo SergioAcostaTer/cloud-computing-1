@@ -38,9 +38,10 @@ const TABLE_NAME = process.env.TABLE_NAME || "BitcoinPositions";
 // ------------------------------------------------------------
 // 📘 Swagger configuration
 // ------------------------------------------------------------
+
 const swaggerBase =
     process.env.SWAGGER_BASE_URL ||
-    "http://localhost:80";
+    `https://${process.env.API_ID}.execute-api.${process.env.AWS_REGION}.amazonaws.com/prod`;
 
 const swaggerOptions = {
     definition: {
@@ -48,26 +49,14 @@ const swaggerOptions = {
         info: {
             title: "Bitcoin Positions API",
             version: "1.0.0",
-            description:
-                "Manage Bitcoin buy/sell positions stored in DynamoDB. Public /docs, CRUD requires API key.",
+            description: "Manage Bitcoin positions in DynamoDB. CRUD requires API key.",
         },
-        servers: [
-            {
-                url: swaggerBase,
-                description: "Current server base URL",
-            },
-        ],
+        servers: [{ url: swaggerBase }],
     },
     apis: [__filename],
 };
 
-
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-
-app.get("/openapi.json", (req, res) => {
-    res.setHeader("Content-Type", "application/json");
-    res.send(swaggerSpec);
-});
 
 
 /**
@@ -257,9 +246,29 @@ app.delete("/positions/:id", async (req, res) => {
     }
 });
 
-// ------------------------------------------------------------
-// ❤️ Health check
-// ------------------------------------------------------------
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                timestamp:
+ *                  type: string
+ *                  format: date-time
+ *               uptime:
+ *                 type: number
+ *                 description: Uptime in seconds
+ */
 app.get("/health", (_, res) => {
     res.json({
         status: "healthy",
@@ -267,6 +276,19 @@ app.get("/health", (_, res) => {
         uptime: process.uptime(),
     });
 });
+
+
+app.get("/openapi.json", (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.send(swaggerSpec);
+});
+
+app.get("/", (_, res) =>
+    res.json({
+        message: "Bitcoin Positions API — see /openapi.json for spec",
+        status: "running",
+    })
+);
 
 const PORT = process.env.PORT || 80;
 app.listen(PORT, () =>
