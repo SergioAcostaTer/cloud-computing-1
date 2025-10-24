@@ -113,8 +113,6 @@ Resources:
               Value: !Ref PositionsTable
             - Name: SWAGGER_BASE_URL
               Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/prod"
-            - Name: API_ID
-              Value: !Ref RestAPI
 
   Service:
     Type: AWS::ECS::Service

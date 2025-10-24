@@ -41,7 +41,7 @@ const TABLE_NAME = process.env.TABLE_NAME || "BitcoinPositions";
 // ------------------------------------------------------------
 const swaggerBase =
     process.env.SWAGGER_BASE_URL ||
-    `https://${process.env.API_ID}.execute-api.${process.env.AWS_REGION}.amazonaws.com/prod`;
+    "http://localhost:80";
 
 const swaggerOptions = {
     definition: {
@@ -265,5 +265,5 @@ app.get("/health", (_, res) => {
 
 const PORT = process.env.PORT || 80;
 app.listen(PORT, () =>
-    console.log(`✅ Bitcoin API running on port ${PORT} (Docs: /docs) 🚀`)
+    console.log(`✅ Bitcoin API running on port ${PORT} (Docs: /) 🚀`)
 );
