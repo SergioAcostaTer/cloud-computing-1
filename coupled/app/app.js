@@ -1,20 +1,13 @@
 import AWS from "aws-sdk";
 import bodyParser from "body-parser";
 import express from "express";
-import path from "path";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
-import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(bodyParser.json());
-
-// Serve static files from the "public" directory
-app.use(express.static(path.join(__dirname, "public")));
 
 AWS.config.update({ region: process.env.AWS_REGION || "us-east-1" });
 const dynamo = new AWS.DynamoDB.DocumentClient();
@@ -42,19 +35,7 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-
-app.use("/docs", swaggerUi.serve, (req, res, next) => {
-    const swaggerDynamicSpec = {
-        ...swaggerSpec,
-        servers: [
-            {
-                url: `${req.protocol}://${req.get("host")}`,
-                description: "Current host",
-            },
-        ],
-    };
-    swaggerUi.setup(swaggerDynamicSpec)(req, res, next);
-});
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
@@ -283,10 +264,6 @@ app.get("/health", (req, res) => {
     });
 });
 
-// Fallback for SPA (Single Page Application)
-app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
-});
 
 const PORT = process.env.PORT || 80;
 app.listen(PORT, () =>
