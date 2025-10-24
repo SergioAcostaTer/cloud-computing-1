@@ -442,9 +442,6 @@ Resources:
       ApiStages:
         - ApiId: !Ref RestAPI
           Stage: !Ref Stage
-          Throttle:
-            "/positions": { "GET": { "rateLimit": 10, "burstLimit": 2 } }
-            "/positions/{id}": { "GET": { "rateLimit": 10, "burstLimit": 2 } }
 
   KeyBinding:
     Type: AWS::ApiGateway::UsagePlanKey

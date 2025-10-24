@@ -5,73 +5,150 @@
   <title>Bitcoin Positions API — Docs Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Swagger UI (CDN) -->
+  <!-- Swagger UI -->
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
 
   <style>
     :root {
-      --bg: #0b1020;
-      --panel: #121933;
-      --accent: #3b82f6;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --ok: #22c55e;
+      color-scheme: light dark;
+      --accent: #f0b90b;
+      --ok: #16a34a;
       --bad: #ef4444;
       --warn: #f59e0b;
-      --border: #1f2a4a;
+      --radius: 10px;
+      --transition: .25s ease;
     }
-    * { box-sizing: border-box; }
+
+    /* DARK THEME */
+    [data-theme="dark"] {
+      --bg: #090d1a;
+      --panel: #111827;
+      --text: #f9fafb;
+      --muted: #cbd5e1;
+      --border: #1e293b;
+      --input-bg: #0f172a;
+    }
+
+    /* LIGHT THEME */
+    [data-theme="light"] {
+      --bg: #ffffff;
+      --panel: #f9fafb;
+      --text: #111827;
+      --muted: #4b5563;
+      --border: #d1d5db;
+      --input-bg: #ffffff;
+    }
+
+    * { box-sizing: border-box; transition: background var(--transition), color var(--transition), border var(--transition); }
     body {
-      margin: 0; padding: 0; background: var(--bg); color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      line-height: 1.5;
     }
+
     header {
-      padding: 18px 20px; border-bottom: 1px solid var(--border);
-      display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,0.2);
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+      background: var(--panel);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
     }
-    h1 { font-size: 18px; margin: 0 10px 0 0; font-weight: 600; letter-spacing: .2px; }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--accent);
+      letter-spacing: 0.3px;
+    }
+
     .controls {
-      display: grid; grid-template-columns: 1.2fr 1fr auto auto; gap: 10px; width: 100%;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr auto auto auto;
+      gap: 12px;
+      width: 100%;
+      margin-top: 8px;
     }
-    .field {
-      display: grid; gap: 6px;
-    }
-    label { font-size: 12px; color: var(--muted); }
+
+    .field { display: grid; gap: 4px; }
+    label { font-size: 13px; color: var(--muted); font-weight: 500; }
+
     input {
-      background: var(--panel); border: 1px solid var(--border); color: var(--text);
-      padding: 10px 12px; border-radius: 10px; outline: none;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      outline: none;
+      font-size: 14px;
+      font-weight: 500;
     }
-    input::placeholder { color: #6b7280; }
+    input::placeholder { color: var(--muted); }
+
     button {
-      background: var(--accent); color: white; border: none; padding: 10px 14px;
-      border-radius: 10px; cursor: pointer; font-weight: 600;
+      border: none;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background .2s, transform .1s;
     }
-    button.secondary { background: #374151; }
-    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    button.primary { background: var(--accent); color: #000; }
+    button.primary:hover { background: #ffce1f; transform: translateY(-1px); }
+
+    button.secondary { background: var(--border); color: var(--text); }
+    button.secondary:hover { background: var(--accent); color: #000; transform: translateY(-1px); }
+
+    .theme-toggle {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .theme-toggle:hover { background: var(--accent); color: #000; }
+
     .status {
-      display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; color: var(--muted);
+      margin-top: 8px;
     }
     .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--warn); }
     .ok .dot { background: var(--ok); }
     .bad .dot { background: var(--bad); }
-    .wrap {
-      padding: 16px 20px;
-    }
+
+    .wrap { padding: 20px; }
     .card {
-      background: #0e1530; border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    .hint { color: var(--muted); font-size: 12px; }
-    /* Swagger UI theme tweak */
+    .hint { color: var(--muted); font-size: 14px; font-weight: 500; }
+
+    /* Swagger overrides */
     .swagger-ui { background: transparent; }
     .swagger-ui .topbar { display: none; }
-    .swagger-ui .scheme-container { background: #0e1530; border: 1px solid var(--border); }
-    .swagger-ui .opblock { background: #0e1530; border-color: var(--border); }
-    .swagger-ui .btn.execute { background: var(--accent) !important; }
-    .swagger-ui .info .title, .swagger-ui .opblock-summary-description { color: var(--text); }
+    .swagger-ui .scheme-container,
+    .swagger-ui .opblock {
+      background: var(--panel);
+      border-color: var(--border);
+    }
+    .swagger-ui .btn.execute {
+      background: var(--accent) !important;
+      color:#000 !important;
+      font-weight:600;
+    }
+    .swagger-ui .info .title,
+    .swagger-ui .opblock-summary-description {
+      color: var(--text);
+    }
   </style>
 </head>
-<body>
+<body data-theme="dark">
   <header>
     <h1>Bitcoin Positions API — Docs</h1>
     <div class="controls">
@@ -81,10 +158,11 @@
       </div>
       <div class="field">
         <label for="apikey">API Key (x-api-key)</label>
-        <input id="apikey" type="password" placeholder="pega tu API key (opcional si el spec es público)" />
+        <input id="apikey" type="password" placeholder="Tu API key (si es necesario)" />
       </div>
-      <button id="loadBtn">Cargar Docs</button>
-      <button id="saveBtn" class="secondary" title="Guardar en este navegador">Guardar</button>
+      <button id="loadBtn" class="primary">Cargar Docs</button>
+      <button id="saveBtn" class="secondary" title="Guardar en navegador">Guardar</button>
+      <button id="themeBtn" class="theme-toggle" title="Cambiar tema">🌙</button>
     </div>
     <div id="health" class="status"><span class="dot"></span><span>Health: esperando…</span></div>
   </header>
@@ -93,13 +171,12 @@
     <div class="card hint">
       💡 Usa tu endpoint y API key. Ejemplo:
       <code>https://xlo34ccus7.execute-api.us-east-1.amazonaws.com/prod</code> ·
-      la API key se añade como cabecera <code>x-api-key</code> tanto al cargar el spec como al probar llamadas.
+      la API key se añade como cabecera <code>x-api-key</code> al cargar el spec y probar llamadas.
     </div>
     <div id="swagger-ui"></div>
   </div>
 
   <script>
-    // Defaults (puedes pre-cargarlos aquí)
     const DEFAULTS = {
       endpoint: "https://xlo34ccus7.execute-api.us-east-1.amazonaws.com/prod",
       apikey: "lFKpwkuin284kp8I0liOraOVkuD5g1JR8Gc3I5Fu"
@@ -110,125 +187,88 @@
       apikey: document.getElementById("apikey"),
       loadBtn: document.getElementById("loadBtn"),
       saveBtn: document.getElementById("saveBtn"),
+      themeBtn: document.getElementById("themeBtn"),
       health: document.getElementById("health"),
       swaggerRoot: document.getElementById("swagger-ui"),
+      body: document.body
     };
 
-    // Cargar de localStorage o defaults
     function loadState() {
-      const ep = localStorage.getItem("bp_endpoint") || DEFAULTS.endpoint;
-      const key = localStorage.getItem("bp_apikey") || DEFAULTS.apikey;
-      els.endpoint.value = ep;
-      els.apikey.value = key;
+      els.endpoint.value = localStorage.getItem("bp_endpoint") || DEFAULTS.endpoint;
+      els.apikey.value = localStorage.getItem("bp_apikey") || DEFAULTS.apikey;
+      const theme = localStorage.getItem("bp_theme") || "dark";
+      els.body.dataset.theme = theme;
+      els.themeBtn.textContent = theme === "dark" ? "🌙" : "☀️";
     }
+
     function saveState() {
       localStorage.setItem("bp_endpoint", els.endpoint.value.trim());
       localStorage.setItem("bp_apikey", els.apikey.value.trim());
-      toast("Guardado en este navegador ✅");
+      toast("Guardado ✅");
     }
 
-    function toast(msg) {
-      console.log(msg);
+    function toggleTheme() {
+      const next = els.body.dataset.theme === "dark" ? "light" : "dark";
+      els.body.dataset.theme = next;
+      els.themeBtn.textContent = next === "dark" ? "🌙" : "☀️";
+      localStorage.setItem("bp_theme", next);
+    }
+
+    function toast(msg){ console.log(msg); }
+
+    function setHealth(state, msg) {
+      els.health.classList.remove("ok", "bad");
+      const text = els.health.querySelector("span:last-child");
+      if (state === "ok") { els.health.classList.add("ok"); text.textContent = "Health: OK " + (msg?`(${msg})`:""); }
+      else if (state === "bad") { els.health.classList.add("bad"); text.textContent = "Health: ERROR " + (msg?`(${msg})`:""); }
+      else { text.textContent = "Health: comprobando…"; }
     }
 
     async function checkHealth(baseUrl, apikey) {
       const url = baseUrl.replace(/\/+$/, "") + "/health";
       setHealth("checking");
       try {
-        const res = await fetch(url, {
-          headers: apikey ? { "x-api-key": apikey } : {}
-        });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const js = await res.json().catch(() => ({}));
-        setHealth("ok", js.status || "healthy");
-      } catch (e) {
-        setHealth("bad", e.message || "error");
-      }
+        const res = await fetch(url,{headers:apikey?{"x-api-key":apikey}:{}}); 
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        const js = await res.json().catch(()=>({}));
+        setHealth("ok", js.status||"healthy");
+      } catch(e){ setHealth("bad", e.message||"error"); }
     }
 
-    function setHealth(state, msg) {
-      els.health.classList.remove("ok", "bad");
-      const dot = els.health.querySelector(".dot");
-      const text = els.health.querySelector("span:last-child");
-      if (state === "ok") {
-        els.health.classList.add("ok");
-        text.textContent = "Health: OK" + (msg ? ` (${msg})` : "");
-      } else if (state === "bad") {
-        els.health.classList.add("bad");
-        text.textContent = "Health: ERROR" + (msg ? ` (${msg})` : "");
-      } else {
-        text.textContent = "Health: comprobando…";
-      }
-    }
-
-    // Cargar OpenAPI + montar Swagger UI
     async function loadDocs() {
       const baseUrl = els.endpoint.value.trim().replace(/\/+$/, "");
       const apikey = els.apikey.value.trim();
       if (!baseUrl) return alert("Introduce un endpoint válido");
-
       const specUrl = baseUrl + "/openapi.json";
-
-      els.loadBtn.disabled = true;
-      els.loadBtn.textContent = "Cargando…";
-
+      els.loadBtn.disabled = true; els.loadBtn.textContent = "Cargando…";
       try {
-        // Traer el spec (con API key si se requiere)
-        const res = await fetch(specUrl, {
-          headers: apikey ? { "x-api-key": apikey } : {}
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Error al cargar spec: ${res.status} ${res.statusText}\n${text}`);
-        }
-        const spec = await res.json();
-
-        // Forzar el server al que indicas en el input
-        spec.servers = [{ url: baseUrl }];
-
-        // Limpiar UI anterior si la hubiera
+        const res = await fetch(specUrl, { headers: apikey ? {"x-api-key": apikey} : {} });
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const spec = await res.json(); spec.servers = [{ url: baseUrl }];
         els.swaggerRoot.innerHTML = "";
-
-        // Montar Swagger UI con requestInterceptor para añadir x-api-key
         SwaggerUIBundle({
           dom_id: "#swagger-ui",
           spec,
           deepLinking: true,
           displayRequestDuration: true,
-          layout: "BaseLayout",
           tryItOutEnabled: true,
+          layout: "BaseLayout",
           requestInterceptor: (req) => {
-            if (apikey) {
-              req.headers["x-api-key"] = apikey;
-            }
-            // Si tu API espera JSON por defecto:
-            if (!req.headers["Content-Type"] && req.method !== "GET") {
+            if (apikey) req.headers["x-api-key"] = apikey;
+            if (!req.headers["Content-Type"] && req.method !== "GET")
               req.headers["Content-Type"] = "application/json";
-            }
             return req;
-          },
+          }
         });
-
-        toast("Spec cargado ✅");
         checkHealth(baseUrl, apikey);
-      } catch (err) {
-        console.error(err);
-        alert(err.message || String(err));
-        setHealth("bad", "No se pudo cargar /health");
-      } finally {
-        els.loadBtn.disabled = false;
-        els.loadBtn.textContent = "Cargar Docs";
-      }
+      } catch (err) { alert(err.message); setHealth("bad", "No se pudo cargar"); }
+      finally { els.loadBtn.disabled = false; els.loadBtn.textContent = "Cargar Docs"; }
     }
 
-    // Eventos
-    els.loadBtn.addEventListener("click", loadDocs);
-    els.saveBtn.addEventListener("click", saveState);
-
-    // Auto-boot
+    els.loadBtn.onclick = loadDocs;
+    els.saveBtn.onclick = saveState;
+    els.themeBtn.onclick = toggleTheme;
     loadState();
-    // Opcional: cargar al abrir
-    // loadDocs();
   </script>
 </body>
 </html>
