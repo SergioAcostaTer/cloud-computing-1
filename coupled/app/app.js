@@ -42,6 +42,7 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
+
 app.use("/docs", swaggerUi.serve, (req, res, next) => {
     const swaggerDynamicSpec = {
         ...swaggerSpec,
@@ -83,7 +84,7 @@ app.use("/docs", swaggerUi.serve, (req, res, next) => {
  *           example: "2025-10-12"
  */
 
-// --- API CRUD ---
+
 
 /**
  * @swagger

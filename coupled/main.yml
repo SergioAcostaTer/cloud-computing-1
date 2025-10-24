@@ -1,25 +1,18 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Bitcoin Tracker - ECS Fargate + API Gateway REST API with API Key"
+Description: "Bitcoin Positions API — ECS Fargate + API Gateway (API key required except /docs, with CORS support)"
 
 Parameters:
   ECRImage:
     Type: String
-    Description: ECR Image URL
-    Default: "992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest"
-
+    Description: ECR image URI (e.g., 1234567890.dkr.ecr.us-east-1.amazonaws.com/bitcoin-api:latest)
   VpcId:
     Type: AWS::EC2::VPC::Id
-    Description: VPC
-
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: At least 2 Subnets
 
-# ============================================================================
-# DYNAMODB RESOURCES
-# ============================================================================
 Resources:
-  DynamoTable:
+  # DynamoDB
+  PositionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: BitcoinPositions
@@ -31,13 +24,11 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-  # ============================================================================
-  # NETWORKING RESOURCES
-  # ============================================================================
+  # Networking
   ECSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Security group for ECS tasks
+      GroupDescription: ECS access on port 80
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -48,9 +39,6 @@ Resources:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
 
-  # ============================================================================
-  # LOAD BALANCER RESOURCES
-  # ============================================================================
   NLB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -69,44 +57,35 @@ Resources:
       TargetType: ip
       HealthCheckProtocol: HTTP
       HealthCheckPath: /health
-      HealthCheckIntervalSeconds: 60
-      HealthCheckTimeoutSeconds: 15
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 10
 
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
       LoadBalancerArn: !Ref NLB
       Port: 80
       Protocol: TCP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
 
-  # ============================================================================
-  # ECS RESOURCES
-  # ============================================================================
-  ECSCluster:
+  # ECS
+  Cluster:
     Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: bitcoin-cluster
 
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /ecs/bitcoin-tracker
+      LogGroupName: /ecs/bitcoin-api
       RetentionInDays: 7
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: bitcoin-task
-      NetworkMode: awsvpc
-      RequiresCompatibilities:
-        - FARGATE
+      Family: bitcoin-api-task
       Cpu: 256
       Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
       ExecutionRoleArn: arn:aws:iam::992382582640:role/LabRole
       TaskRoleArn: arn:aws:iam::992382582640:role/LabRole
       ContainerDefinitions:
@@ -114,7 +93,6 @@ Resources:
           Image: !Ref ECRImage
           PortMappings:
             - ContainerPort: 80
-              Protocol: tcp
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -123,44 +101,38 @@ Resources:
               awslogs-stream-prefix: bitcoin
           Environment:
             - Name: TABLE_NAME
-              Value: !Ref DynamoTable
+              Value: !Ref PositionsTable
 
-  ECSService:
+  Service:
     Type: AWS::ECS::Service
-    DependsOn:
-      - Listener
+    DependsOn: Listener
     Properties:
-      Cluster: !Ref ECSCluster
-      ServiceName: bitcoin-service
+      Cluster: !Ref Cluster
       TaskDefinition: !Ref TaskDefinition
-      DesiredCount: 1
       LaunchType: FARGATE
+      DesiredCount: 1
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
+          AssignPublicIp: DISABLED
           Subnets: !Ref SubnetIds
-          SecurityGroups:
-            - !Ref ECSSecurityGroup
+          SecurityGroups: [!Ref ECSSecurityGroup]
       LoadBalancers:
         - ContainerName: bitcoin-container
           ContainerPort: 80
           TargetGroupArn: !Ref TargetGroup
 
-  # ============================================================================
-  # API GATEWAY RESOURCES
-  # ============================================================================
+  # API Gateway
   VPCLink:
     Type: AWS::ApiGateway::VpcLink
     Properties:
       Name: bitcoin-vpc-link
-      TargetArns:
-        - !Ref NLB
+      TargetArns: [!Ref NLB]
 
   RestAPI:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: bitcoin-api
-      Description: API for Bitcoin positions management
+      Description: Bitcoin Positions REST API
 
   ItemsResource:
     Type: AWS::ApiGateway::Resource
@@ -176,14 +148,22 @@ Resources:
       ParentId: !Ref ItemsResource
       PathPart: "{id}"
 
-  PostItemsMethod:
+  DocsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: docs
+
+  # CRUD methods (API key required)
+  PostItems:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
       ResourceId: !Ref ItemsResource
       HttpMethod: POST
       AuthorizationType: NONE
-      ApiKeyRequired: false
+      ApiKeyRequired: true
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: POST
@@ -191,14 +171,14 @@ Resources:
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
 
-  GetItemsMethod:
+  GetItems:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
       ResourceId: !Ref ItemsResource
       HttpMethod: GET
       AuthorizationType: NONE
-      ApiKeyRequired: false
+      ApiKeyRequired: true
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: GET
@@ -206,14 +186,14 @@ Resources:
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
 
-  GetItemMethod:
+  GetItem:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
       ResourceId: !Ref ItemResource
       HttpMethod: GET
       AuthorizationType: NONE
-      ApiKeyRequired: false
+      ApiKeyRequired: true
       RequestParameters:
         method.request.path.id: true
       Integration:
@@ -225,14 +205,14 @@ Resources:
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-  PutItemMethod:
+  PutItem:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
       ResourceId: !Ref ItemResource
       HttpMethod: PUT
       AuthorizationType: NONE
-      ApiKeyRequired: false
+      ApiKeyRequired: true
       RequestParameters:
         method.request.path.id: true
       Integration:
@@ -244,14 +224,14 @@ Resources:
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-  DeleteItemMethod:
+  DeleteItem:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
       ResourceId: !Ref ItemResource
       HttpMethod: DELETE
       AuthorizationType: NONE
-      ApiKeyRequired: false
+      ApiKeyRequired: true
       RequestParameters:
         method.request.path.id: true
       Integration:
@@ -263,7 +243,24 @@ Resources:
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-  OptionsItemsMethod:
+  # Public /docs
+  GetDocs:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref DocsResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: GET
+        Uri: !Sub "http://${NLB.DNSName}:80/docs"
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref VPCLink
+
+  # CORS (public, no key)
+  OptionsItems:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
@@ -276,9 +273,9 @@ Resources:
         IntegrationResponses:
           - StatusCode: 200
             ResponseParameters:
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
             ResponseTemplates:
               application/json: ""
         RequestTemplates:
@@ -286,11 +283,11 @@ Resources:
       MethodResponses:
         - StatusCode: 200
           ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
 
-  OptionsItemMethod:
+  OptionsItem:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
@@ -303,9 +300,9 @@ Resources:
         IntegrationResponses:
           - StatusCode: 200
             ResponseParameters:
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
             ResponseTemplates:
               application/json: ""
         RequestTemplates:
@@ -313,31 +310,60 @@ Resources:
       MethodResponses:
         - StatusCode: 200
           ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
 
-  APIDeployment:
+  OptionsDocs:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref DocsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  Deployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
-      - PostItemsMethod
-      - GetItemsMethod
-      - GetItemMethod
-      - PutItemMethod
-      - DeleteItemMethod
-      - OptionsItemsMethod
-      - OptionsItemMethod
+      - PostItems
+      - GetItems
+      - GetItem
+      - PutItem
+      - DeleteItem
+      - GetDocs
+      - OptionsItems
+      - OptionsItem
+      - OptionsDocs
     Properties:
       RestApiId: !Ref RestAPI
 
-  APIStage:
+  Stage:
     Type: AWS::ApiGateway::Stage
     Properties:
       RestApiId: !Ref RestAPI
-      DeploymentId: !Ref APIDeployment
+      DeploymentId: !Ref Deployment
       StageName: prod
 
-  APIKey:
+  ApiKey:
     Type: AWS::ApiGateway::ApiKey
     Properties:
       Name: bitcoin-api-key
@@ -345,40 +371,27 @@ Resources:
 
   UsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    DependsOn: APIStage
     Properties:
-      UsagePlanName: bitcoin-usage-plan
+      UsagePlanName: bitcoin-usage
       ApiStages:
         - ApiId: !Ref RestAPI
-          Stage: !Ref APIStage
+          Stage: !Ref Stage
 
-  UsagePlanKey:
+  KeyBinding:
     Type: AWS::ApiGateway::UsagePlanKey
     Properties:
-      KeyId: !Ref APIKey
+      KeyId: !Ref ApiKey
       KeyType: API_KEY
       UsagePlanId: !Ref UsagePlan
 
-# ============================================================================
-# OUTPUTS
-# ============================================================================
 Outputs:
-  APIEndpoint:
-    Description: API Gateway URL
+  ApiUrl:
     Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/prod"
-
-  APIKeyId:
-    Description: API Key ID
-    Value: !Ref APIKey
-
-  DynamoDBTable:
-    Description: DynamoDB Table Name
-    Value: !Ref DynamoTable
-
-  ECSServiceName:
-    Description: ECS Service Name
-    Value: !GetAtt ECSService.Name
-
-  NLBDNSName:
-    Description: Network Load Balancer DNS Name
+  ApiKeyValue:
+    Value: !Ref ApiKey
+  TableName:
+    Value: !Ref PositionsTable
+  ServiceName:
+    Value: !GetAtt Service.Name
+  NlbDns:
     Value: !GetAtt NLB.DNSName
