@@ -3,7 +3,7 @@
 @id = 123456-test              # temporary test ID for PUT/DELETE
 
 ### 🚀 1. Create a new Bitcoin position
-POST {{host}}/items
+POST {{host}}/positions
 Content-Type: application/json
 
 {
@@ -14,14 +14,14 @@ Content-Type: application/json
 }
 
 ### 📋 2. Get all positions
-GET {{host}}/items
+GET {{host}}/positions
 
 ### 🔍 3. Get position by ID
 # 🟡 Replace {{id}} with a real ID from the GET above
-GET {{host}}/items/{{id}}
+GET {{host}}/positions/{{id}}
 
 ### ✏️ 4. Update position by ID
-PUT {{host}}/items/{{id}}
+PUT {{host}}/positions/{{id}}
 Content-Type: application/json
 
 {
@@ -32,7 +32,7 @@ Content-Type: application/json
 }
 
 ### ❌ 5. Delete position by ID
-DELETE {{host}}/items/{{id}}
+DELETE {{host}}/positions/{{id}}
 
 ### 🧭 6. Swagger Documentation (UI)
 GET {{host}}/docs
