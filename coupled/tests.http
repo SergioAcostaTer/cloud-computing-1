@@ -1,7 +1,7 @@
 ### 🌍 Global Variables
-@host = https://n865nn1pi1.execute-api.us-east-1.amazonaws.com/prod
-@apiKey = L9cG6fw1c44zfh3oJpqXmaBQAQ8BLV1J6UgeCgDa
-@id = 123456-test              # temporary test ID for PUT/DELETE
+@host = https://xlo34ccus7.execute-api.us-east-1.amazonaws.com/prod
+@apiKey = lFKpwkuin284kp8I0liOraOVkuD5g1JR8Gc3I5Fu
+@id = 93a60b79-095e-4b95-9b6c-4c3af0b365e6
 
 ### 🚀 1. Create a new Bitcoin position
 POST {{host}}/positions

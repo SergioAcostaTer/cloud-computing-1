@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Bitcoin Positions API — Docs Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Swagger UI (CDN) -->
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --accent: #3b82f6;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --ok: #22c55e;
+      --bad: #ef4444;
+      --warn: #f59e0b;
+      --border: #1f2a4a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    header {
+      padding: 18px 20px; border-bottom: 1px solid var(--border);
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,0.2);
+    }
+    h1 { font-size: 18px; margin: 0 10px 0 0; font-weight: 600; letter-spacing: .2px; }
+    .controls {
+      display: grid; grid-template-columns: 1.2fr 1fr auto auto; gap: 10px; width: 100%;
+    }
+    .field {
+      display: grid; gap: 6px;
+    }
+    label { font-size: 12px; color: var(--muted); }
+    input {
+      background: var(--panel); border: 1px solid var(--border); color: var(--text);
+      padding: 10px 12px; border-radius: 10px; outline: none;
+    }
+    input::placeholder { color: #6b7280; }
+    button {
+      background: var(--accent); color: white; border: none; padding: 10px 14px;
+      border-radius: 10px; cursor: pointer; font-weight: 600;
+    }
+    button.secondary { background: #374151; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .status {
+      display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--warn); }
+    .ok .dot { background: var(--ok); }
+    .bad .dot { background: var(--bad); }
+    .wrap {
+      padding: 16px 20px;
+    }
+    .card {
+      background: #0e1530; border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px;
+    }
+    .hint { color: var(--muted); font-size: 12px; }
+    /* Swagger UI theme tweak */
+    .swagger-ui { background: transparent; }
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .scheme-container { background: #0e1530; border: 1px solid var(--border); }
+    .swagger-ui .opblock { background: #0e1530; border-color: var(--border); }
+    .swagger-ui .btn.execute { background: var(--accent) !important; }
+    .swagger-ui .info .title, .swagger-ui .opblock-summary-description { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Bitcoin Positions API — Docs</h1>
+    <div class="controls">
+      <div class="field">
+        <label for="endpoint">Endpoint (host)</label>
+        <input id="endpoint" type="url" placeholder="https://.../prod" />
+      </div>
+      <div class="field">
+        <label for="apikey">API Key (x-api-key)</label>
+        <input id="apikey" type="password" placeholder="pega tu API key (opcional si el spec es público)" />
+      </div>
+      <button id="loadBtn">Cargar Docs</button>
+      <button id="saveBtn" class="secondary" title="Guardar en este navegador">Guardar</button>
+    </div>
+    <div id="health" class="status"><span class="dot"></span><span>Health: esperando…</span></div>
+  </header>
+
+  <div class="wrap">
+    <div class="card hint">
+      💡 Usa tu endpoint y API key. Ejemplo:
+      <code>https://xlo34ccus7.execute-api.us-east-1.amazonaws.com/prod</code> ·
+      la API key se añade como cabecera <code>x-api-key</code> tanto al cargar el spec como al probar llamadas.
+    </div>
+    <div id="swagger-ui"></div>
+  </div>
+
+  <script>
+    // Defaults (puedes pre-cargarlos aquí)
+    const DEFAULTS = {
+      endpoint: "https://xlo34ccus7.execute-api.us-east-1.amazonaws.com/prod",
+      apikey: "lFKpwkuin284kp8I0liOraOVkuD5g1JR8Gc3I5Fu"
+    };
+
+    const els = {
+      endpoint: document.getElementById("endpoint"),
+      apikey: document.getElementById("apikey"),
+      loadBtn: document.getElementById("loadBtn"),
+      saveBtn: document.getElementById("saveBtn"),
+      health: document.getElementById("health"),
+      swaggerRoot: document.getElementById("swagger-ui"),
+    };
+
+    // Cargar de localStorage o defaults
+    function loadState() {
+      const ep = localStorage.getItem("bp_endpoint") || DEFAULTS.endpoint;
+      const key = localStorage.getItem("bp_apikey") || DEFAULTS.apikey;
+      els.endpoint.value = ep;
+      els.apikey.value = key;
+    }
+    function saveState() {
+      localStorage.setItem("bp_endpoint", els.endpoint.value.trim());
+      localStorage.setItem("bp_apikey", els.apikey.value.trim());
+      toast("Guardado en este navegador ✅");
+    }
+
+    function toast(msg) {
+      console.log(msg);
+    }
+
+    async function checkHealth(baseUrl, apikey) {
+      const url = baseUrl.replace(/\/+$/, "") + "/health";
+      setHealth("checking");
+      try {
+        const res = await fetch(url, {
+          headers: apikey ? { "x-api-key": apikey } : {}
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const js = await res.json().catch(() => ({}));
+        setHealth("ok", js.status || "healthy");
+      } catch (e) {
+        setHealth("bad", e.message || "error");
+      }
+    }
+
+    function setHealth(state, msg) {
+      els.health.classList.remove("ok", "bad");
+      const dot = els.health.querySelector(".dot");
+      const text = els.health.querySelector("span:last-child");
+      if (state === "ok") {
+        els.health.classList.add("ok");
+        text.textContent = "Health: OK" + (msg ? ` (${msg})` : "");
+      } else if (state === "bad") {
+        els.health.classList.add("bad");
+        text.textContent = "Health: ERROR" + (msg ? ` (${msg})` : "");
+      } else {
+        text.textContent = "Health: comprobando…";
+      }
+    }
+
+    // Cargar OpenAPI + montar Swagger UI
+    async function loadDocs() {
+      const baseUrl = els.endpoint.value.trim().replace(/\/+$/, "");
+      const apikey = els.apikey.value.trim();
+      if (!baseUrl) return alert("Introduce un endpoint válido");
+
+      const specUrl = baseUrl + "/openapi.json";
+
+      els.loadBtn.disabled = true;
+      els.loadBtn.textContent = "Cargando…";
+
+      try {
+        // Traer el spec (con API key si se requiere)
+        const res = await fetch(specUrl, {
+          headers: apikey ? { "x-api-key": apikey } : {}
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Error al cargar spec: ${res.status} ${res.statusText}\n${text}`);
+        }
+        const spec = await res.json();
+
+        // Forzar el server al que indicas en el input
+        spec.servers = [{ url: baseUrl }];
+
+        // Limpiar UI anterior si la hubiera
+        els.swaggerRoot.innerHTML = "";
+
+        // Montar Swagger UI con requestInterceptor para añadir x-api-key
+        SwaggerUIBundle({
+          dom_id: "#swagger-ui",
+          spec,
+          deepLinking: true,
+          displayRequestDuration: true,
+          layout: "BaseLayout",
+          tryItOutEnabled: true,
+          requestInterceptor: (req) => {
+            if (apikey) {
+              req.headers["x-api-key"] = apikey;
+            }
+            // Si tu API espera JSON por defecto:
+            if (!req.headers["Content-Type"] && req.method !== "GET") {
+              req.headers["Content-Type"] = "application/json";
+            }
+            return req;
+          },
+        });
+
+        toast("Spec cargado ✅");
+        checkHealth(baseUrl, apikey);
+      } catch (err) {
+        console.error(err);
+        alert(err.message || String(err));
+        setHealth("bad", "No se pudo cargar /health");
+      } finally {
+        els.loadBtn.disabled = false;
+        els.loadBtn.textContent = "Cargar Docs";
+      }
+    }
+
+    // Eventos
+    els.loadBtn.addEventListener("click", loadDocs);
+    els.saveBtn.addEventListener("click", saveState);
+
+    // Auto-boot
+    loadState();
+    // Opcional: cargar al abrir
+    // loadDocs();
+  </script>
+</body>
+</html>

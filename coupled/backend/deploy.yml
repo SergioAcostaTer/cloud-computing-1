@@ -416,11 +416,10 @@ Resources:
       - RootGet
       - OptionsRoot
       - GetOpenApi
-      - ApiKey
       - OptionsOpenApi
     Properties:
       RestApiId: !Ref RestAPI
-      Description: !Sub "Deployment for ${AWS::StackName}"
+      Description: !Sub "Deployment for ${AWS::StackName} — forced refresh"
 
   Stage:
     Type: AWS::ApiGateway::Stage
@@ -437,11 +436,15 @@ Resources:
 
   UsagePlan:
     Type: AWS::ApiGateway::UsagePlan
+    DependsOn: Stage
     Properties:
       UsagePlanName: bitcoin-usage
       ApiStages:
         - ApiId: !Ref RestAPI
           Stage: !Ref Stage
+          Throttle:
+            "/positions": { "GET": { "rateLimit": 10, "burstLimit": 2 } }
+            "/positions/{id}": { "GET": { "rateLimit": 10, "burstLimit": 2 } }
 
   KeyBinding:
     Type: AWS::ApiGateway::UsagePlanKey
