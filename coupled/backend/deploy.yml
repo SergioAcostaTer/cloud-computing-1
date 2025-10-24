@@ -470,6 +470,8 @@ Resources:
       - OptionsRoot
       - GetOpenApi
       - OptionsOpenApi
+      - GetHealth
+      - OptionsHealth
     Properties:
       RestApiId: !Ref RestAPI
       Description: !Sub "Deployment for ${AWS::StackName} — forced refresh"
