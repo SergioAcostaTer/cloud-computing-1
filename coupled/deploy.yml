@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Bitcoin Positions API — ECS Fargate + API Gateway (API key required except /docs, full CORS support)"
+Description: "Bitcoin Positions API — ECS Fargate + API Gateway (API key required except / (docs), full CORS support)"
 
 # ============================================================
 # 🔧 PARAMETERS
@@ -113,6 +113,8 @@ Resources:
               Value: !Ref PositionsTable
             - Name: SWAGGER_BASE_URL
               Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/prod"
+            - Name: API_ID
+              Value: !Ref RestAPI
 
   Service:
     Type: AWS::ECS::Service
@@ -272,7 +274,7 @@ Resources:
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80/docs"
+        Uri: !Sub "http://${NLB.DNSName}:80"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
 

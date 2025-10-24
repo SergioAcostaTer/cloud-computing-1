@@ -41,7 +41,7 @@ const TABLE_NAME = process.env.TABLE_NAME || "BitcoinPositions";
 // ------------------------------------------------------------
 const swaggerBase =
     process.env.SWAGGER_BASE_URL ||
-    `http://localhost:${process.env.PORT || 80}`;
+    `https://${process.env.API_ID}.execute-api.${process.env.AWS_REGION}.amazonaws.com/prod`;
 
 const swaggerOptions = {
     definition: {
@@ -63,7 +63,7 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use(["/docs", "/docs/"], swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
