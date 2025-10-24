@@ -175,9 +175,16 @@ Resources:
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80/openapi.json"
+        Uri: !Sub "http://${NLB.DNSName}:80/"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
+
+  OpenApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: openapi.json
 
   OptionsRoot:
     Type: AWS::ApiGateway::Method
@@ -206,7 +213,32 @@ Resources:
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Headers: true
 
-
+  OptionsOpenApi:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref OpenApiResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
 # ------------------------------------------------------------
 # 📦 CRUD METHODS (API KEY REQUIRED)
 # ------------------------------------------------------------
@@ -297,6 +329,20 @@ Resources:
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
+  GetOpenApi:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref OpenApiResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: GET
+        Uri: !Sub "http://${NLB.DNSName}:80/openapi.json"
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref VPCLink
 # ------------------------------------------------------------
 # 🌐 CORS OPTIONS METHODS
 # ------------------------------------------------------------
@@ -369,6 +415,9 @@ Resources:
       - OptionsPosition
       - RootGet
       - OptionsRoot
+      - GetOpenApi
+      - ApiKey
+      - OptionsOpenApi
     Properties:
       RestApiId: !Ref RestAPI
       Description: !Sub "Deployment for ${AWS::StackName}"
