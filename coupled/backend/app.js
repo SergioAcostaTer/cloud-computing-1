@@ -63,7 +63,7 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(["/docs", "/docs/"], swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger

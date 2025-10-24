@@ -168,6 +168,13 @@ Resources:
       ParentId: !GetAtt RestAPI.RootResourceId
       PathPart: docs
 
+  DocsSlashResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: "docs/"
+      RestApiId: !Ref RestAPI
+
 # ------------------------------------------------------------
 # 📦 CRUD METHODS (API KEY REQUIRED)
 # ------------------------------------------------------------
@@ -239,24 +246,24 @@ Resources:
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-  DeletePosition:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestAPI
-      ResourceId: !Ref PositionResource
-      HttpMethod: DELETE
-      AuthorizationType: NONE
-      ApiKeyRequired: true
-      RequestParameters:
-        method.request.path.id: true
-      Integration:
-        Type: HTTP_PROXY
-        IntegrationHttpMethod: DELETE
-        Uri: !Sub "http://${NLB.DNSName}:80/positions/{id}"
-        ConnectionType: VPC_LINK
-        ConnectionId: !Ref VPCLink
+    DeletePosition:
+      Type: AWS::ApiGateway::Method
+      Properties:
+        RestApiId: !Ref RestAPI
+        ResourceId: !Ref PositionResource
+        HttpMethod: DELETE
+        AuthorizationType: NONE
+        ApiKeyRequired: true
         RequestParameters:
-          integration.request.path.id: method.request.path.id
+          method.request.path.id: true
+        Integration:
+          Type: HTTP_PROXY
+          IntegrationHttpMethod: DELETE
+          Uri: !Sub "http://${NLB.DNSName}:80/positions/{id}"
+          ConnectionType: VPC_LINK
+          ConnectionId: !Ref VPCLink
+          RequestParameters:
+            integration.request.path.id: method.request.path.id
 
 # ------------------------------------------------------------
 # 🌍 PUBLIC /DOCS ENDPOINT (NO KEY)
@@ -275,6 +282,22 @@ Resources:
         Uri: !Sub "http://${NLB.DNSName}:80/docs"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
+  
+  GetDocsSlash:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref DocsSlashResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: GET
+        Uri: !Sub "http://${NLB.DNSName}:80/docs/"
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref VPCLink
+
 
 # ------------------------------------------------------------
 # 🌐 CORS OPTIONS METHODS
