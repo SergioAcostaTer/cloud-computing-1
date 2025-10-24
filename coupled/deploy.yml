@@ -1,17 +1,22 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Bitcoin Positions API — ECS Fargate + API Gateway (API key required except /docs, with CORS support)"
+Description: "Bitcoin Positions API — ECS Fargate + API Gateway (API key required except /docs, full CORS support)"
 
+# ============================================================
+# 🔧 PARAMETERS
+# ============================================================
 Parameters:
   ECRImage:
     Type: String
-    Description: ECR image URI (e.g., "992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest")
+    Description: "ECR image URI (e.g., 992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest)"
   VpcId:
     Type: AWS::EC2::VPC::Id
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
 
+# ============================================================
+# 💾 DYNAMODB TABLE
+# ============================================================
 Resources:
-  # DynamoDB
   PositionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -24,11 +29,13 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-  # Networking
+# ============================================================
+# 🌐 NETWORKING (VPC, SG, NLB)
+# ============================================================
   ECSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: ECS access on port 80
+      GroupDescription: "Allow ECS traffic on port 80"
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -68,7 +75,9 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
 
-  # ECS
+# ============================================================
+# 🐳 ECS CLUSTER + TASK + SERVICE
+# ============================================================
   Cluster:
     Type: AWS::ECS::Cluster
 
@@ -102,6 +111,8 @@ Resources:
           Environment:
             - Name: TABLE_NAME
               Value: !Ref PositionsTable
+            - Name: SWAGGER_BASE_URL
+              Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/prod"
 
   Service:
     Type: AWS::ECS::Service
@@ -121,7 +132,9 @@ Resources:
           ContainerPort: 80
           TargetGroupArn: !Ref TargetGroup
 
-  # API Gateway
+# ============================================================
+# 🚀 API GATEWAY
+# ============================================================
   VPCLink:
     Type: AWS::ApiGateway::VpcLink
     Properties:
@@ -132,20 +145,20 @@ Resources:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: bitcoin-api
-      Description: Bitcoin Positions REST API
+      Description: "Bitcoin Positions REST API"
 
-  ItemsResource:
+  PositionsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref RestAPI
       ParentId: !GetAtt RestAPI.RootResourceId
-      PathPart: items
+      PathPart: positions
 
-  ItemResource:
+  PositionResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref RestAPI
-      ParentId: !Ref ItemsResource
+      ParentId: !Ref PositionsResource
       PathPart: "{id}"
 
   DocsResource:
@@ -155,42 +168,44 @@ Resources:
       ParentId: !GetAtt RestAPI.RootResourceId
       PathPart: docs
 
-  # CRUD methods (API key required)
-  PostItems:
+# ------------------------------------------------------------
+# 📦 CRUD METHODS (API KEY REQUIRED)
+# ------------------------------------------------------------
+  PostPosition:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
-      ResourceId: !Ref ItemsResource
+      ResourceId: !Ref PositionsResource
       HttpMethod: POST
       AuthorizationType: NONE
       ApiKeyRequired: true
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: POST
-        Uri: !Sub "http://${NLB.DNSName}:80/items"
+        Uri: !Sub "http://${NLB.DNSName}:80/positions"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
 
-  GetItems:
+  GetPositions:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
-      ResourceId: !Ref ItemsResource
+      ResourceId: !Ref PositionsResource
       HttpMethod: GET
       AuthorizationType: NONE
       ApiKeyRequired: true
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80/items"
+        Uri: !Sub "http://${NLB.DNSName}:80/positions"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
 
-  GetItem:
+  GetPosition:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
-      ResourceId: !Ref ItemResource
+      ResourceId: !Ref PositionResource
       HttpMethod: GET
       AuthorizationType: NONE
       ApiKeyRequired: true
@@ -199,17 +214,17 @@ Resources:
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80/items/{id}"
+        Uri: !Sub "http://${NLB.DNSName}:80/positions/{id}"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-  PutItem:
+  PutPosition:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
-      ResourceId: !Ref ItemResource
+      ResourceId: !Ref PositionResource
       HttpMethod: PUT
       AuthorizationType: NONE
       ApiKeyRequired: true
@@ -218,17 +233,17 @@ Resources:
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: PUT
-        Uri: !Sub "http://${NLB.DNSName}:80/items/{id}"
+        Uri: !Sub "http://${NLB.DNSName}:80/positions/{id}"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-  DeleteItem:
+  DeletePosition:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
-      ResourceId: !Ref ItemResource
+      ResourceId: !Ref PositionResource
       HttpMethod: DELETE
       AuthorizationType: NONE
       ApiKeyRequired: true
@@ -237,13 +252,15 @@ Resources:
       Integration:
         Type: HTTP_PROXY
         IntegrationHttpMethod: DELETE
-        Uri: !Sub "http://${NLB.DNSName}:80/items/{id}"
+        Uri: !Sub "http://${NLB.DNSName}:80/positions/{id}"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-  # Public /docs
+# ------------------------------------------------------------
+# 🌍 PUBLIC /DOCS ENDPOINT (NO KEY)
+# ------------------------------------------------------------
   GetDocs:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -259,12 +276,14 @@ Resources:
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
 
-  # CORS (public, no key)
-  OptionsItems:
+# ------------------------------------------------------------
+# 🌐 CORS OPTIONS METHODS
+# ------------------------------------------------------------
+  OptionsPositions:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
-      ResourceId: !Ref ItemsResource
+      ResourceId: !Ref PositionsResource
       HttpMethod: OPTIONS
       AuthorizationType: NONE
       ApiKeyRequired: false
@@ -287,11 +306,11 @@ Resources:
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Headers: true
 
-  OptionsItem:
+  OptionsPosition:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
-      ResourceId: !Ref ItemResource
+      ResourceId: !Ref PositionResource
       HttpMethod: OPTIONS
       AuthorizationType: NONE
       ApiKeyRequired: false
@@ -341,20 +360,24 @@ Resources:
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Headers: true
 
+# ------------------------------------------------------------
+# 🚀 DEPLOYMENT + STAGE + API KEY
+# ------------------------------------------------------------
   Deployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
-      - PostItems
-      - GetItems
-      - GetItem
-      - PutItem
-      - DeleteItem
+      - PostPosition
+      - GetPositions
+      - GetPosition
+      - PutPosition
+      - DeletePosition
       - GetDocs
-      - OptionsItems
-      - OptionsItem
+      - OptionsPositions
+      - OptionsPosition
       - OptionsDocs
     Properties:
       RestApiId: !Ref RestAPI
+      Description: !Sub "Deployed at ${AWS::Timestamp}"
 
   Stage:
     Type: AWS::ApiGateway::Stage
@@ -384,6 +407,9 @@ Resources:
       KeyType: API_KEY
       UsagePlanId: !Ref UsagePlan
 
+# ============================================================
+# 📤 OUTPUTS
+# ============================================================
 Outputs:
   ApiUrl:
     Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/prod"

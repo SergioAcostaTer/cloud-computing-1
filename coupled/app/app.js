@@ -1,3 +1,8 @@
+// ============================================================
+//  Bitcoin Positions API (Express + DynamoDB + Swagger)
+//  Public /docs endpoint with CORS and ECS-friendly configuration
+// ============================================================
+
 import AWS from "aws-sdk";
 import bodyParser from "body-parser";
 import express from "express";
@@ -5,15 +10,34 @@ import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import { v4 as uuidv4 } from "uuid";
 
-
 const app = express();
 app.use(bodyParser.json());
 
+// ------------------------------------------------------------
+// 🔒 Global CORS middleware (safe across API Gateway + browsers)
+// ------------------------------------------------------------
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Content-Type,x-api-key");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    if (req.method === "OPTIONS") return res.sendStatus(200);
+    next();
+});
+
+// ------------------------------------------------------------
+// 💾 DynamoDB setup
+// ------------------------------------------------------------
 AWS.config.update({ region: process.env.AWS_REGION || "us-east-1" });
 const dynamo = new AWS.DynamoDB.DocumentClient();
 const TABLE_NAME = process.env.TABLE_NAME || "BitcoinPositions";
 
-// 📘 --- Swagger configuration ---
+// ------------------------------------------------------------
+// 📘 Swagger configuration
+// ------------------------------------------------------------
+const swaggerBase =
+    process.env.SWAGGER_BASE_URL ||
+    `http://localhost:${process.env.PORT || 80}`;
+
 const swaggerOptions = {
     definition: {
         openapi: "3.0.0",
@@ -21,12 +45,12 @@ const swaggerOptions = {
             title: "Bitcoin Positions API",
             version: "1.0.0",
             description:
-                "Simple CRUD API for managing Bitcoin positions (buy/sell operations) stored in DynamoDB.",
+                "Manage Bitcoin buy/sell positions stored in DynamoDB. Public /docs, CRUD requires API key.",
         },
         servers: [
             {
-                url: `http://localhost:${process.env.PORT || 80}`,
-                description: "Local development server",
+                url: swaggerBase,
+                description: "Current server base URL",
             },
         ],
     },
@@ -34,7 +58,6 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
@@ -65,28 +88,24 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *           example: "2025-10-12"
  */
 
-
+// ------------------------------------------------------------
+// 🟢 CRUD: Positions
+// ------------------------------------------------------------
 
 /**
  * @swagger
- * /items:
+ * /positions:
  *   get:
  *     summary: Get all Bitcoin positions
  *     tags: [Positions]
  *     responses:
  *       200:
- *         description: List of all positions
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Position'
+ *         description: List of positions
  */
-app.get("/items", async (req, res) => {
+app.get("/positions", async (_, res) => {
     try {
         const data = await dynamo.scan({ TableName: TABLE_NAME }).promise();
-        res.json(data.Items);
+        res.json(data.Items || []);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -94,31 +113,27 @@ app.get("/items", async (req, res) => {
 
 /**
  * @swagger
- * /items/{id}:
+ * /positions/{id}:
  *   get:
  *     summary: Get a position by ID
  *     tags: [Positions]
  *     parameters:
- *       - in: path
- *         name: id
+ *       - name: id
+ *         in: path
  *         required: true
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Found item
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Position'
+ *         description: Found position
  *       404:
  *         description: Not found
  */
-app.get("/items/:id", async (req, res) => {
+app.get("/positions/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const data = await dynamo.get({ TableName: TABLE_NAME, Key: { id } }).promise();
-        if (!data.Item) return res.status(404).json({ message: "Item not found" });
+        if (!data.Item) return res.status(404).json({ message: "Not found" });
         res.json(data.Item);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -127,9 +142,9 @@ app.get("/items/:id", async (req, res) => {
 
 /**
  * @swagger
- * /items:
+ * /positions:
  *   post:
- *     summary: Create a new Bitcoin position
+ *     summary: Create a new position
  *     tags: [Positions]
  *     requestBody:
  *       required: true
@@ -140,19 +155,13 @@ app.get("/items/:id", async (req, res) => {
  *     responses:
  *       201:
  *         description: Created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Position'
- *       400:
- *         description: Invalid input
  */
-app.post("/items", async (req, res) => {
+app.post("/positions", async (req, res) => {
     try {
         const { symbol, quantity, type, entry, date } = req.body;
-        if (!symbol || !quantity || !type || !date) {
+        if (!symbol || !quantity || !type || !date)
             return res.status(400).json({ error: "Missing required fields" });
-        }
+
         const item = { id: uuidv4(), symbol, quantity, type, entry, date };
         await dynamo.put({ TableName: TABLE_NAME, Item: item }).promise();
         res.status(201).json(item);
@@ -163,13 +172,13 @@ app.post("/items", async (req, res) => {
 
 /**
  * @swagger
- * /items/{id}:
+ * /positions/{id}:
  *   put:
- *     summary: Update an existing position
+ *     summary: Update a position
  *     tags: [Positions]
  *     parameters:
- *       - in: path
- *         name: id
+ *       - name: id
+ *         in: path
  *         required: true
  *         schema:
  *           type: string
@@ -182,26 +191,17 @@ app.post("/items", async (req, res) => {
  *     responses:
  *       200:
  *         description: Updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Position'
- *       404:
- *         description: Item not found
  */
-app.put("/items/:id", async (req, res) => {
+app.put("/positions/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const { symbol, quantity, type, entry, date } = req.body;
-
         const params = {
             TableName: TABLE_NAME,
             Key: { id },
             UpdateExpression:
                 "set symbol = :s, quantity = :q, #t = :t, entry = :e, date = :d",
-            ExpressionAttributeNames: {
-                "#t": "type"
-            },
+            ExpressionAttributeNames: { "#t": "type" },
             ExpressionAttributeValues: {
                 ":s": symbol,
                 ":q": quantity,
@@ -211,7 +211,6 @@ app.put("/items/:id", async (req, res) => {
             },
             ReturnValues: "ALL_NEW",
         };
-
         const result = await dynamo.update(params).promise();
         res.json(result.Attributes);
     } catch (err) {
@@ -219,16 +218,15 @@ app.put("/items/:id", async (req, res) => {
     }
 });
 
-
 /**
  * @swagger
- * /items/{id}:
+ * /positions/{id}:
  *   delete:
  *     summary: Delete a position
  *     tags: [Positions]
  *     parameters:
- *       - in: path
- *         name: id
+ *       - name: id
+ *         in: path
  *         required: true
  *         schema:
  *           type: string
@@ -236,7 +234,7 @@ app.put("/items/:id", async (req, res) => {
  *       200:
  *         description: Deleted successfully
  */
-app.delete("/items/:id", async (req, res) => {
+app.delete("/positions/:id", async (req, res) => {
     try {
         const { id } = req.params;
         await dynamo.delete({ TableName: TABLE_NAME, Key: { id } }).promise();
@@ -246,17 +244,10 @@ app.delete("/items/:id", async (req, res) => {
     }
 });
 
-/**
- * @swagger
- * /health:
- *   get:
- *     summary: Health check endpoint
- *     tags: [System]
- *     responses:
- *       200:
- *         description: Service is healthy
- */
-app.get("/health", (req, res) => {
+// ------------------------------------------------------------
+// ❤️ Health check
+// ------------------------------------------------------------
+app.get("/health", (_, res) => {
     res.json({
         status: "healthy",
         timestamp: new Date().toISOString(),
@@ -264,8 +255,7 @@ app.get("/health", (req, res) => {
     });
 });
 
-
 const PORT = process.env.PORT || 80;
 app.listen(PORT, () =>
-    console.log(`✅ App running on port ${PORT} (Docs: http://localhost:${PORT}/docs) 🚀`)
+    console.log(`✅ Bitcoin API running on port ${PORT} (Docs: /docs) 🚀`)
 );
