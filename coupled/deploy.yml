@@ -377,7 +377,7 @@ Resources:
       - OptionsDocs
     Properties:
       RestApiId: !Ref RestAPI
-      Description: !Sub "Deployed at ${AWS::Timestamp}"
+      Description: !Sub "Deployment for ${AWS::StackName}"
 
   Stage:
     Type: AWS::ApiGateway::Stage

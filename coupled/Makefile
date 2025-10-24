@@ -15,7 +15,7 @@ IMAGE_URI = $(ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com/$(REPO_NAME):latest
 
 build:
 	@echo "🏗️  Building Docker image..."
-	docker build -t $(REPO_NAME) ./app
+	docker build -t $(REPO_NAME) ./backend
 
 tag:
 	@echo "🔖 Tagging image..."

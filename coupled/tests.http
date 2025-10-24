@@ -1,9 +1,9 @@
-### 🌍 Variables globales
-@host = 54.173.187.8
-@id = 123456-test              # variable temporal para test de PUT/DELETE
+### 🌍 Global Variables
+@host = https://v0ukp6ocy8.execute-api.us-east-1.amazonaws.com/prod
+@id = 123456-test              # temporary test ID for PUT/DELETE
 
 ### 🚀 1. Create a new Bitcoin position
-POST http://{{host}}/items
+POST {{host}}/items
 Content-Type: application/json
 
 {
@@ -14,14 +14,14 @@ Content-Type: application/json
 }
 
 ### 📋 2. Get all positions
-GET http://{{host}}/items
+GET {{host}}/items
 
 ### 🔍 3. Get position by ID
-# 🟡 Reemplaza {{id}} con un ID real obtenido del GET anterior
-GET http://{{host}}/items/{{id}}
+# 🟡 Replace {{id}} with a real ID from the GET above
+GET {{host}}/items/{{id}}
 
 ### ✏️ 4. Update position by ID
-PUT http://{{host}}/items/{{id}}
+PUT {{host}}/items/{{id}}
 Content-Type: application/json
 
 {
@@ -32,13 +32,13 @@ Content-Type: application/json
 }
 
 ### ❌ 5. Delete position by ID
-DELETE http://{{host}}/items/{{id}}
+DELETE {{host}}/items/{{id}}
 
 ### 🧭 6. Swagger Documentation (UI)
-GET http://{{host}}/docs
+GET {{host}}/docs
 
 ### 🏠 7. Frontend (HTML interface)
-GET http://{{host}}/
+GET {{host}}/
 
 ### 🛠️ 8. Health Check
-GET http://{{host}}/health
+GET {{host}}/health
