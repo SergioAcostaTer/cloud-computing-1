@@ -168,13 +168,6 @@ Resources:
       ParentId: !GetAtt RestAPI.RootResourceId
       PathPart: docs
 
-  DocsSlashResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      ParentId: !GetAtt RestAPI.RootResourceId
-      PathPart: "docs/"
-      RestApiId: !Ref RestAPI
-
 # ------------------------------------------------------------
 # 📦 CRUD METHODS (API KEY REQUIRED)
 # ------------------------------------------------------------
@@ -282,22 +275,6 @@ Resources:
         Uri: !Sub "http://${NLB.DNSName}:80/docs"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
-  
-  GetDocsSlash:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestAPI
-      ResourceId: !Ref DocsSlashResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      ApiKeyRequired: false
-      Integration:
-        Type: HTTP_PROXY
-        IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80/docs/"
-        ConnectionType: VPC_LINK
-        ConnectionId: !Ref VPCLink
-
 
 # ------------------------------------------------------------
 # 🌐 CORS OPTIONS METHODS
@@ -395,7 +372,6 @@ Resources:
       - PutPosition
       - DeletePosition
       - GetDocs
-      - GetDocsSlash
       - OptionsPositions
       - OptionsPosition
       - OptionsDocs
