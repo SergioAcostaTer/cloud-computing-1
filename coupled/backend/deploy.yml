@@ -403,12 +403,6 @@ Resources:
 # ============================================================
 # HEALTH CHECK METHOD
 # ============================================================
-  HealthResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref RestAPI
-      ParentId: !GetAtt RestAPI.RootResourceId
-      PathPart: health
 
   HealthResource:
     Type: AWS::ApiGateway::Resource
