@@ -410,6 +410,13 @@ Resources:
       ParentId: !GetAtt RestAPI.RootResourceId
       PathPart: health
 
+  HealthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: health
+
   GetHealth:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -424,6 +431,11 @@ Resources:
         Uri: !Sub "http://${NLB.DNSName}:80/health"
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
 
   OptionsHealth:
     Type: AWS::ApiGateway::Method
