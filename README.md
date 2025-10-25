@@ -372,7 +372,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 🎓 Computer Engineering Student @ ULPGC
 - 🌐 Cloud Computing Enthusiast
-- 📫 [LinkedIn](https://linkedin.com/in/sergioacostater) | [GitHub](https://github.com/SergioAcostaTer)
+- 📫 [LinkedIn](https://linkedin.com/in/sergioacostaquintana) | [GitHub](https://github.com/SergioAcostaTer)
 
 ---
 
