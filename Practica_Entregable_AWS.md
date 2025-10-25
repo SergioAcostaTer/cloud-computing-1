@@ -65,3 +65,12 @@ DELETE /items/{id} - Eliminar elemento
 - **+1 punto:** Se prepara alguna interfaz rudimentaria de prueba que permita probar todas las funciones de CRUD  
 
 **Total máximo:** 10 puntos
+
+
+En esta entrega han de incluirse los siguientes elementos:
+
+- Memoria de la práctica
+- Código asociado a la entrega
+- Ficheros yaml si los hubiera
+- Costo del despliegue durante 1 mes y 1 año (puede ir incluido en la memoria)
+- Esquema de la/s arquitectura/s desplegadas
