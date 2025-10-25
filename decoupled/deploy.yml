@@ -1,0 +1,534 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Bitcoin Positions API - Decoupled Serverless (5 Lambda Functions)"
+
+# ==============================================================================
+# PARAMETERS
+# ==============================================================================
+
+Parameters:
+  LambdaCodeBucket:
+    Type: String
+    Description: "S3 bucket name containing Lambda deployment packages"
+    
+  LambdaCodeKey:
+    Type: String
+    Description: "S3 key for Lambda deployment package (e.g., lambda-code.zip)"
+    Default: "lambda-code.zip"
+
+# ==============================================================================
+# RESOURCES
+# ==============================================================================
+
+Resources:
+
+  # ----------------------------------------------------------------------------
+  # DynamoDB Table
+  # ----------------------------------------------------------------------------
+  
+  PositionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BitcoinPositionsDecoupled
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  # ----------------------------------------------------------------------------
+  # Lambda Functions (5 Total)
+  # ----------------------------------------------------------------------------
+
+  # Lambda 1: CRUD Operations (Create, Update, Delete)
+  CRUDFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: btc-crud-operations
+      Runtime: nodejs18.x
+      Handler: crud.handler
+      Role: arn:aws:iam::992382582640:role/LabRole
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref PositionsTable
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+
+  # Lambda 2: Read Operations (Get All, Get One)
+  ReadFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: btc-read-operations
+      Runtime: nodejs18.x
+      Handler: read.handler
+      Role: arn:aws:iam::992382582640:role/LabRole
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref PositionsTable
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+
+  # Lambda 3: OpenAPI Documentation
+  OpenAPIFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: btc-openapi-docs
+      Runtime: nodejs18.x
+      Handler: openapi.handler
+      Role: arn:aws:iam::992382582640:role/LabRole
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          API_ID: !Ref RestAPI
+          REGION: !Ref AWS::Region
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+
+  # Lambda 4: Health Check
+  HealthFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: btc-health-check
+      Runtime: nodejs18.x
+      Handler: health.handler
+      Role: arn:aws:iam::992382582640:role/LabRole
+      Timeout: 5
+      MemorySize: 128
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+
+  # Lambda 5: Root Handler
+  RootFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: btc-root-handler
+      Runtime: nodejs18.x
+      Handler: root.handler
+      Role: arn:aws:iam::992382582640:role/LabRole
+      Timeout: 5
+      MemorySize: 128
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+
+  # ----------------------------------------------------------------------------
+  # Lambda Permissions
+  # ----------------------------------------------------------------------------
+
+  CRUDPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CRUDFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestAPI}/*/*/*"
+
+  ReadPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ReadFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestAPI}/*/*/*"
+
+  OpenAPIPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref OpenAPIFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestAPI}/*/*/*"
+
+  HealthPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref HealthFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestAPI}/*/*/*"
+
+  RootPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref RootFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestAPI}/*/*/*"
+
+  # ----------------------------------------------------------------------------
+  # API Gateway
+  # ----------------------------------------------------------------------------
+  
+  RestAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: bitcoin-api-decoupled
+      Description: "Bitcoin Positions Serverless REST API (5 Lambdas)"
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # Resources
+  PositionsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: positions
+
+  PositionResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !Ref PositionsResource
+      PathPart: "{id}"
+
+  OpenApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: openapi.json
+
+  HealthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: health
+
+  # ----------------------------------------------------------------------------
+  # Public Endpoints
+  # ----------------------------------------------------------------------------
+
+  RootGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !GetAtt RestAPI.RootResourceId
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RootFunction.Arn}/invocations"
+
+  GetOpenApi:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref OpenApiResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OpenAPIFunction.Arn}/invocations"
+
+  GetHealth:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref HealthResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthFunction.Arn}/invocations"
+
+  # ----------------------------------------------------------------------------
+  # Protected Endpoints (API Key Required)
+  # ----------------------------------------------------------------------------
+  
+  PostPosition:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref PositionsResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CRUDFunction.Arn}/invocations"
+
+  GetPositions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref PositionsResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ReadFunction.Arn}/invocations"
+
+  GetPosition:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref PositionResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ReadFunction.Arn}/invocations"
+
+  PutPosition:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref PositionResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CRUDFunction.Arn}/invocations"
+
+  DeletePosition:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref PositionResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CRUDFunction.Arn}/invocations"
+
+  # ----------------------------------------------------------------------------
+  # CORS OPTIONS
+  # ----------------------------------------------------------------------------
+  
+  OptionsRoot:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !GetAtt RestAPI.RootResourceId
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  OptionsOpenApi:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref OpenApiResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  OptionsHealth:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref HealthResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  OptionsPositions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref PositionsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  OptionsPosition:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref PositionResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  # ----------------------------------------------------------------------------
+  # Deployment
+  # ----------------------------------------------------------------------------
+  
+  Deployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - RootGet
+      - OptionsRoot
+      - GetOpenApi
+      - OptionsOpenApi
+      - GetHealth
+      - OptionsHealth
+      - PostPosition
+      - GetPositions
+      - GetPosition
+      - PutPosition
+      - DeletePosition
+      - OptionsPositions
+      - OptionsPosition
+    Properties:
+      RestApiId: !Ref RestAPI
+
+  Stage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref RestAPI
+      DeploymentId: !Ref Deployment
+      StageName: prod
+
+  # ----------------------------------------------------------------------------
+  # API Key
+  # ----------------------------------------------------------------------------
+  
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: bitcoin-api-key-decoupled
+      Enabled: true
+
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: Stage
+    Properties:
+      UsagePlanName: bitcoin-usage-plan-decoupled
+      Throttle:
+        RateLimit: 100
+        BurstLimit: 200
+      ApiStages:
+        - ApiId: !Ref RestAPI
+          Stage: !Ref Stage
+
+  KeyBinding:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+# ==============================================================================
+# OUTPUTS
+# ==============================================================================
+
+Outputs:
+  ApiUrl:
+    Description: "API Base URL"
+    Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/prod"
+    
+  ApiKeyValue:
+    Description: "API Key ID"
+    Value: !Ref ApiKey
+    
+  TableName:
+    Description: "DynamoDB Table"
+    Value: !Ref PositionsTable
+    
+  LambdaFunctions:
+    Description: "Lambda Functions Deployed"
+    Value: "5 functions: CRUD, Read, OpenAPI, Health, Root"
