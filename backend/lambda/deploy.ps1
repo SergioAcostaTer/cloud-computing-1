@@ -32,9 +32,38 @@ aws cloudformation deploy `
     --capabilities CAPABILITY_NAMED_IAM `
     --region us-east-1
 
-# 8️⃣ Show API outputs
+# 8️⃣ Fetch CloudFormation outputs
 Write-Host "`n✅ Deployment complete. Fetching outputs..." -ForegroundColor Green
-aws cloudformation describe-stacks `
+$Outputs = aws cloudformation describe-stacks `
     --stack-name $StackName `
     --region us-east-1 `
-    --query "Stacks[0].Outputs"
+    --query "Stacks[0].Outputs" `
+    --output json | ConvertFrom-Json
+
+# 9️⃣ Extract API URL and API Key ID
+$ApiUrl = ($Outputs | Where-Object { $_.OutputKey -match "ApiEndpoint|ApiUrl|ApiGatewayUrl" }).OutputValue
+$ApiKeyId = ($Outputs | Where-Object { $_.OutputKey -match "ApiKey|ApiKeyId" }).OutputValue
+
+# 🔟 Get the actual API Key value (if exists)
+$ApiKeyValue = ""
+if ($ApiKeyId) {
+    try {
+        $ApiKeyValue = aws apigateway get-api-key `
+            --api-key $ApiKeyId `
+            --include-value `
+            --region us-east-1 `
+            --query "value" `
+            --output text
+    } catch {
+        Write-Host "⚠️  Unable to fetch API key value (permissions or key not found)." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "⚠️  No API Key ID found in stack outputs." -ForegroundColor Yellow
+}
+
+# 💬 Display results neatly
+Write-Host "`n=====================================" -ForegroundColor DarkGray
+Write-Host "✅ Bitcoin API Deployment Completed!" -ForegroundColor Green
+Write-Host "🌐 API URL: $ApiUrl" -ForegroundColor Cyan
+Write-Host "🔑 API Key: $ApiKeyValue" -ForegroundColor Yellow
+Write-Host "=====================================`n" -ForegroundColor DarkGray
