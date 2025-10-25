@@ -54,7 +54,7 @@ cd ..
 ### 2️⃣ Create an S3 bucket
 
 ```bash
-aws s3 mb s3://my-decoupled-lambda-bucket
+aws s3 mb s3://lambda-bucket
 ```
 
 ---
@@ -62,7 +62,7 @@ aws s3 mb s3://my-decoupled-lambda-bucket
 ### 3️⃣ Upload the Lambda code to S3
 
 ```bash
-aws s3 cp lambda-code.zip s3://my-decoupled-lambda-bucket/
+aws s3 cp lambda-code.zip s3://lambda-bucket/
 ```
 
 ---
@@ -73,11 +73,11 @@ aws s3 cp lambda-code.zip s3://my-decoupled-lambda-bucket/
 aws cloudformation deploy ^
   --template-file deploy.yml ^
   --stack-name bitcoin-decoupled ^
-  --parameter-overrides LambdaCodeBucket=my-decoupled-lambda-bucket ^
+  --parameter-overrides LambdaCodeBucket=lambda-bucket ^
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
-> ⚠️ Replace `my-decoupled-lambda-bucket` with your actual bucket name.
+> ⚠️ Replace `lambda-bucket` with your actual bucket name.
 
 ---
 
