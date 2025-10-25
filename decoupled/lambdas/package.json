@@ -1,6 +1,10 @@
 {
+    "name": "lambdas",
+    "version": "1.0.0",
     "type": "commonjs",
     "dependencies": {
+        "@aws-sdk/client-dynamodb": "^3.600.0",
+        "@aws-sdk/util-dynamodb": "^3.600.0",
         "uuid": "^9.0.1"
     }
 }

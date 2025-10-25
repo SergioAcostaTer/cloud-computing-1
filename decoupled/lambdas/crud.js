@@ -1,6 +1,6 @@
-import { DeleteItemCommand, DynamoDBClient, PutItemCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
-import { v4 as uuidv4 } from "uuid";
+const { DynamoDBClient, PutItemCommand, UpdateItemCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
+const { marshall } = require("@aws-sdk/util-dynamodb");
+const { v4: uuidv4 } = require("uuid");
 
 const client = new DynamoDBClient({});
 const TABLE_NAME = process.env.TABLE_NAME;
@@ -17,12 +17,7 @@ exports.handler = async (event) => {
                 return res(400, { error: "Missing required fields" });
 
             const item = { id: uuidv4(), symbol, quantity, type, entry, date };
-            await client.send(
-                new PutItemCommand({
-                    TableName: TABLE_NAME,
-                    Item: marshall(item),
-                })
-            );
+            await client.send(new PutItemCommand({ TableName: TABLE_NAME, Item: marshall(item) }));
             return res(201, item);
         }
 
@@ -31,8 +26,7 @@ exports.handler = async (event) => {
             const update = new UpdateItemCommand({
                 TableName: TABLE_NAME,
                 Key: marshall({ id }),
-                UpdateExpression:
-                    "SET #s = :s, quantity = :q, #t = :t, entry = :e, #d = :d",
+                UpdateExpression: "SET #s = :s, quantity = :q, #t = :t, entry = :e, #d = :d",
                 ExpressionAttributeNames: { "#s": "symbol", "#t": "type", "#d": "date" },
                 ExpressionAttributeValues: marshall({
                     ":s": symbol,
@@ -48,9 +42,7 @@ exports.handler = async (event) => {
         }
 
         if (method === "DELETE" && id) {
-            await client.send(
-                new DeleteItemCommand({ TableName: TABLE_NAME, Key: marshall({ id }) })
-            );
+            await client.send(new DeleteItemCommand({ TableName: TABLE_NAME, Key: marshall({ id }) }));
             return res(200, { deleted: id });
         }
 

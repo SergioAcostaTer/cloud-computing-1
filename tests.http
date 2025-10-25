@@ -1,6 +1,6 @@
 ### 🌍 Global Variables
-@host = https://xlo34ccus7.execute-api.us-east-1.amazonaws.com/prod
-@apiKey = lFKpwkuin284kp8I0liOraOVkuD5g1JR8Gc3I5Fu
+@host = https://s2i1g5n5nb.execute-api.us-east-1.amazonaws.com/prod
+@apiKey = DZmbah46ih8AJF9KaTRxB1CggnBWkB7f2QT9QCMt
 @id = 93a60b79-095e-4b95-9b6c-4c3af0b365e6
 
 ### 🚀 1. Create a new Bitcoin position
