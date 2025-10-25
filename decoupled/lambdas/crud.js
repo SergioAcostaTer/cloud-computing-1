@@ -1,9 +1,9 @@
-import AWS from "aws-sdk";
-import { v4 as uuidv4 } from "uuid";
+const AWS = require("aws-sdk");
+const { v4: uuidv4 } = require("uuid");
 const dynamo = new AWS.DynamoDB.DocumentClient();
 const TABLE_NAME = process.env.TABLE_NAME;
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
     const id = event.pathParameters?.id;
@@ -42,7 +42,6 @@ export const handler = async (event) => {
         }
 
         if (method === "DELETE" && id) {
-            // Delete
             await dynamo.delete({ TableName: TABLE_NAME, Key: { id } }).promise();
             return res(200, { deleted: id });
         }

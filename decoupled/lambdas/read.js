@@ -1,8 +1,8 @@
-import AWS from "aws-sdk";
+const AWS = require("aws-sdk");
 const dynamo = new AWS.DynamoDB.DocumentClient();
 const TABLE_NAME = process.env.TABLE_NAME;
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
     const id = event.pathParameters?.id;
     try {
         if (id) {

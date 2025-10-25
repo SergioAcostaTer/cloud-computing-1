@@ -1,4 +1,4 @@
-export const handler = async () => {
+exports.handler = async () => {
     const spec = {
         openapi: "3.0.0",
         info: {
