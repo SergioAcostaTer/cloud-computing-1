@@ -1,22 +1,33 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Bitcoin Positions API — ECS Fargate + API Gateway (API key required except / (docs), full CORS support)"
+Description: "Bitcoin Positions API - ECS Fargate with API Gateway, VPC Link, and DynamoDB"
 
-# ============================================================
-# 🔧 PARAMETERS
-# ============================================================
+# ==============================================================================
+# PARAMETERS
+# ==============================================================================
+
 Parameters:
   ECRImage:
     Type: String
     Description: "ECR image URI (e.g., 992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest)"
+    
   VpcId:
     Type: AWS::EC2::VPC::Id
+    Description: "VPC ID where resources will be deployed"
+    
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
+    Description: "List of subnet IDs for ECS tasks and NLB"
 
-# ============================================================
-# 💾 DYNAMODB TABLE
-# ============================================================
+# ==============================================================================
+# RESOURCES
+# ==============================================================================
+
 Resources:
+
+  # ----------------------------------------------------------------------------
+  # DynamoDB Table
+  # ----------------------------------------------------------------------------
+  
   PositionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -29,13 +40,14 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-# ============================================================
-# 🌐 NETWORKING (VPC, SG, NLB)
-# ============================================================
+  # ----------------------------------------------------------------------------
+  # Network Resources
+  # ----------------------------------------------------------------------------
+  
   ECSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: "Allow ECS traffic on port 80"
+      GroupDescription: "Security group for ECS tasks - allows traffic on port 80"
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -75,11 +87,14 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
 
-# ============================================================
-# 🐳 ECS CLUSTER + TASK + SERVICE
-# ============================================================
+  # ----------------------------------------------------------------------------
+  # ECS Resources
+  # ----------------------------------------------------------------------------
+  
   Cluster:
     Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: bitcoin-api-cluster
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -94,7 +109,8 @@ Resources:
       Cpu: 256
       Memory: 512
       NetworkMode: awsvpc
-      RequiresCompatibilities: [FARGATE]
+      RequiresCompatibilities:
+        - FARGATE
       ExecutionRoleArn: arn:aws:iam::992382582640:role/LabRole
       TaskRoleArn: arn:aws:iam::992382582640:role/LabRole
       ContainerDefinitions:
@@ -102,6 +118,7 @@ Resources:
           Image: !Ref ECRImage
           PortMappings:
             - ContainerPort: 80
+              Protocol: tcp
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -118,6 +135,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: Listener
     Properties:
+      ServiceName: bitcoin-api-service
       Cluster: !Ref Cluster
       TaskDefinition: !Ref TaskDefinition
       LaunchType: FARGATE
@@ -126,27 +144,35 @@ Resources:
         AwsvpcConfiguration:
           AssignPublicIp: ENABLED
           Subnets: !Ref SubnetIds
-          SecurityGroups: [!Ref ECSSecurityGroup]
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
       LoadBalancers:
         - ContainerName: bitcoin-container
           ContainerPort: 80
           TargetGroupArn: !Ref TargetGroup
 
-# ============================================================
-# 🚀 API GATEWAY
-# ============================================================
+  # ----------------------------------------------------------------------------
+  # API Gateway - Core Resources
+  # ----------------------------------------------------------------------------
+  
   VPCLink:
     Type: AWS::ApiGateway::VpcLink
     Properties:
       Name: bitcoin-vpc-link
-      TargetArns: [!Ref NLB]
+      Description: "VPC Link for connecting API Gateway to internal NLB"
+      TargetArns:
+        - !Ref NLB
 
   RestAPI:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: bitcoin-api
-      Description: "Bitcoin Positions REST API"
+      Description: "Bitcoin Positions REST API with API key authentication"
 
+  # ----------------------------------------------------------------------------
+  # API Gateway - Resource Definitions
+  # ----------------------------------------------------------------------------
+  
   PositionsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -161,9 +187,24 @@ Resources:
       ParentId: !Ref PositionsResource
       PathPart: "{id}"
 
-# ------------------------------------------------------------
-# 🌍 PUBLIC ROOT ENDPOINT (SWAGGER DOCS, NO API KEY)
-# ------------------------------------------------------------
+  OpenApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: openapi.json
+
+  HealthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: health
+
+  # ----------------------------------------------------------------------------
+  # API Gateway - Public Endpoints (No API Key Required)
+  # ----------------------------------------------------------------------------
+  
   RootGet:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -179,69 +220,45 @@ Resources:
         ConnectionType: VPC_LINK
         ConnectionId: !Ref VPCLink
 
-  OpenApiResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref RestAPI
-      ParentId: !GetAtt RestAPI.RootResourceId
-      PathPart: openapi.json
-
-  OptionsRoot:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestAPI
-      ResourceId: !GetAtt RestAPI.RootResourceId
-      HttpMethod: OPTIONS
-      AuthorizationType: NONE
-      ApiKeyRequired: false
-      Integration:
-        Type: MOCK
-        IntegrationResponses:
-          - StatusCode: 200
-            ResponseParameters:
-              method.response.header.Access-Control-Allow-Origin: "'*'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
-            ResponseTemplates:
-              application/json: ""
-        RequestTemplates:
-          application/json: '{"statusCode": 200}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Origin: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Headers: true
-
-  OptionsOpenApi:
+  GetOpenApi:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
       ResourceId: !Ref OpenApiResource
-      HttpMethod: OPTIONS
+      HttpMethod: GET
       AuthorizationType: NONE
       ApiKeyRequired: false
       Integration:
-        Type: MOCK
-        IntegrationResponses:
-          - StatusCode: 200
-            ResponseParameters:
-              method.response.header.Access-Control-Allow-Origin: "'*'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
-            ResponseTemplates:
-              application/json: ""
-        RequestTemplates:
-          application/json: '{"statusCode": 200}'
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: GET
+        Uri: !Sub "http://${NLB.DNSName}:80/openapi.json"
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref VPCLink
+
+  GetHealth:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref HealthResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: GET
+        Uri: !Sub "http://${NLB.DNSName}:80/health"
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref VPCLink
       MethodResponses:
         - StatusCode: 200
           ResponseParameters:
             method.response.header.Access-Control-Allow-Origin: true
-            method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Headers: true
-# ------------------------------------------------------------
-# 📦 CRUD METHODS (API KEY REQUIRED)
-# ------------------------------------------------------------
+
+  # ----------------------------------------------------------------------------
+  # API Gateway - Protected Endpoints (API Key Required)
+  # ----------------------------------------------------------------------------
+  
   PostPosition:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -329,23 +346,91 @@ Resources:
         RequestParameters:
           integration.request.path.id: method.request.path.id
 
-  GetOpenApi:
+  # ----------------------------------------------------------------------------
+  # API Gateway - CORS Preflight (OPTIONS Methods)
+  # ----------------------------------------------------------------------------
+  
+  OptionsRoot:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !GetAtt RestAPI.RootResourceId
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  OptionsOpenApi:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !Ref RestAPI
       ResourceId: !Ref OpenApiResource
-      HttpMethod: GET
+      HttpMethod: OPTIONS
       AuthorizationType: NONE
       ApiKeyRequired: false
       Integration:
-        Type: HTTP_PROXY
-        IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80/openapi.json"
-        ConnectionType: VPC_LINK
-        ConnectionId: !Ref VPCLink
-# ------------------------------------------------------------
-# 🌐 CORS OPTIONS METHODS
-# ------------------------------------------------------------
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  OptionsHealth:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref HealthResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
+            ResponseTemplates:
+              application/json: ""
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
   OptionsPositions:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -400,71 +485,19 @@ Resources:
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Headers: true
 
-# ============================================================
-# HEALTH CHECK METHOD
-# ============================================================
-
-  HealthResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref RestAPI
-      ParentId: !GetAtt RestAPI.RootResourceId
-      PathPart: health
-
-  GetHealth:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestAPI
-      ResourceId: !Ref HealthResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      ApiKeyRequired: false
-      Integration:
-        Type: HTTP_PROXY
-        IntegrationHttpMethod: GET
-        Uri: !Sub "http://${NLB.DNSName}:80/health"
-        ConnectionType: VPC_LINK
-        ConnectionId: !Ref VPCLink
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Origin: true
-            method.response.header.Access-Control-Allow-Headers: true
-
-  OptionsHealth:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestAPI
-      ResourceId: !Ref HealthResource
-      HttpMethod: OPTIONS
-      AuthorizationType: NONE
-      ApiKeyRequired: false
-      Integration:
-        Type: MOCK
-        IntegrationResponses:
-          - StatusCode: 200
-            ResponseParameters:
-              method.response.header.Access-Control-Allow-Origin: "'*'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type,x-api-key'"
-            ResponseTemplates:
-              application/json: ""
-        RequestTemplates:
-          application/json: '{"statusCode": 200}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Origin: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Headers: true
-
-
-# ------------------------------------------------------------
-# 🚀 DEPLOYMENT + STAGE + API KEY
-# ------------------------------------------------------------
+  # ----------------------------------------------------------------------------
+  # API Gateway - Deployment and Stage
+  # ----------------------------------------------------------------------------
+  
   Deployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
+      - RootGet
+      - OptionsRoot
+      - GetOpenApi
+      - OptionsOpenApi
+      - GetHealth
+      - OptionsHealth
       - PostPosition
       - GetPositions
       - GetPosition
@@ -472,15 +505,9 @@ Resources:
       - DeletePosition
       - OptionsPositions
       - OptionsPosition
-      - RootGet
-      - OptionsRoot
-      - GetOpenApi
-      - OptionsOpenApi
-      - GetHealth
-      - OptionsHealth
     Properties:
       RestApiId: !Ref RestAPI
-      Description: !Sub "Deployment for ${AWS::StackName} — forced refresh"
+      Description: !Sub "Production deployment for ${AWS::StackName}"
 
   Stage:
     Type: AWS::ApiGateway::Stage
@@ -488,25 +515,31 @@ Resources:
       RestApiId: !Ref RestAPI
       DeploymentId: !Ref Deployment
       StageName: prod
+      Description: "Production stage"
 
+  # ----------------------------------------------------------------------------
+  # API Gateway - API Key and Usage Plan
+  # ----------------------------------------------------------------------------
+  
   ApiKey:
     Type: AWS::ApiGateway::ApiKey
     Properties:
       Name: bitcoin-api-key
+      Description: "API key for Bitcoin Positions API"
       Enabled: true
 
   UsagePlan:
     Type: AWS::ApiGateway::UsagePlan
     DependsOn: Stage
     Properties:
-      UsagePlanName: bitcoin-usage
+      UsagePlanName: bitcoin-usage-plan
+      Description: "Usage plan for Bitcoin Positions API"
       Throttle:
         RateLimit: 50
         BurstLimit: 100
       ApiStages:
         - ApiId: !Ref RestAPI
           Stage: !Ref Stage
-      
 
   KeyBinding:
     Type: AWS::ApiGateway::UsagePlanKey
@@ -515,17 +548,31 @@ Resources:
       KeyType: API_KEY
       UsagePlanId: !Ref UsagePlan
 
-# ============================================================
-# 📤 OUTPUTS
-# ============================================================
+# ==============================================================================
+# OUTPUTS
+# ==============================================================================
+
 Outputs:
   ApiUrl:
+    Description: "Base URL for the Bitcoin Positions API"
     Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/prod"
+    
   ApiKeyValue:
+    Description: "API Key ID for authenticated requests"
     Value: !Ref ApiKey
+    
   TableName:
+    Description: "DynamoDB table name"
     Value: !Ref PositionsTable
+    
   ServiceName:
+    Description: "ECS service name"
     Value: !GetAtt Service.Name
+    
   NlbDns:
+    Description: "Internal Network Load Balancer DNS name"
     Value: !GetAtt NLB.DNSName
+    
+  ClusterName:
+    Description: "ECS cluster name"
+    Value: !Ref Cluster
