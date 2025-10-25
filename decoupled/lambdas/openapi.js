@@ -1,4 +1,4 @@
-exports.handler = async () => {
+export const handler = async () => {
     const spec = {
         openapi: "3.0.0",
         info: {
@@ -16,7 +16,9 @@ exports.handler = async () => {
                 put: { summary: "Update by ID", responses: { 200: { description: "Updated" } } },
                 delete: { summary: "Delete by ID", responses: { 200: { description: "Deleted" } } },
             },
-            "/health": { get: { summary: "Health check", responses: { 200: { description: "OK" } } } },
+            "/health": {
+                get: { summary: "Health check", responses: { 200: { description: "OK" } } },
+            },
         },
     };
 

@@ -1,53 +1,62 @@
-const AWS = require("aws-sdk");
-const { v4: uuidv4 } = require("uuid");
-const dynamo = new AWS.DynamoDB.DocumentClient();
+import { DeleteItemCommand, DynamoDBClient, PutItemCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import { v4 as uuidv4 } from "uuid";
+
+const client = new DynamoDBClient({});
 const TABLE_NAME = process.env.TABLE_NAME;
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
     const id = event.pathParameters?.id;
 
     try {
         if (method === "POST") {
-            // Create
             const { symbol, quantity, type, entry, date } = body;
             if (!symbol || !quantity || !type || !date)
                 return res(400, { error: "Missing required fields" });
+
             const item = { id: uuidv4(), symbol, quantity, type, entry, date };
-            await dynamo.put({ TableName: TABLE_NAME, Item: item }).promise();
+            await client.send(
+                new PutItemCommand({
+                    TableName: TABLE_NAME,
+                    Item: marshall(item),
+                })
+            );
             return res(201, item);
         }
 
         if (method === "PUT" && id) {
-            // Update
             const { symbol, quantity, type, entry, date } = body;
-            const params = {
+            const update = new UpdateItemCommand({
                 TableName: TABLE_NAME,
-                Key: { id },
+                Key: marshall({ id }),
                 UpdateExpression:
-                    "set symbol=:s, quantity=:q, #t=:t, entry=:e, #d=:d",
-                ExpressionAttributeNames: { "#t": "type", "#d": "date" },
-                ExpressionAttributeValues: {
+                    "SET #s = :s, quantity = :q, #t = :t, entry = :e, #d = :d",
+                ExpressionAttributeNames: { "#s": "symbol", "#t": "type", "#d": "date" },
+                ExpressionAttributeValues: marshall({
                     ":s": symbol,
                     ":q": quantity,
                     ":t": type,
                     ":e": entry,
                     ":d": date,
-                },
+                }),
                 ReturnValues: "ALL_NEW",
-            };
-            const result = await dynamo.update(params).promise();
-            return res(200, result.Attributes);
+            });
+            const result = await client.send(update);
+            return res(200, result.Attributes ? result.Attributes : {});
         }
 
         if (method === "DELETE" && id) {
-            await dynamo.delete({ TableName: TABLE_NAME, Key: { id } }).promise();
+            await client.send(
+                new DeleteItemCommand({ TableName: TABLE_NAME, Key: marshall({ id }) })
+            );
             return res(200, { deleted: id });
         }
 
         return res(405, { error: "Method not allowed" });
     } catch (err) {
+        console.error("Error:", err);
         return res(500, { error: err.message });
     }
 };
