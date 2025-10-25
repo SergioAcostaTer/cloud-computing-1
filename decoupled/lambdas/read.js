@@ -4,7 +4,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 const client = new DynamoDBClient({});
 const TABLE_NAME = process.env.TABLE_NAME;
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
     const id = event.pathParameters?.id;
 
     try {

@@ -1,16 +1,6 @@
 {
-    "name": "lambdas",
-    "version": "1.0.0",
-    "description": "Bitcoin Positions API Lambdas",
-    "main": "crud.js",
     "type": "commonjs",
     "dependencies": {
         "uuid": "^9.0.1"
-    },
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "ISC"
+    }
 }

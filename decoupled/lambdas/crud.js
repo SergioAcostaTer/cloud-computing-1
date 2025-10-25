@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 const client = new DynamoDBClient({});
 const TABLE_NAME = process.env.TABLE_NAME;
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
     const id = event.pathParameters?.id;
