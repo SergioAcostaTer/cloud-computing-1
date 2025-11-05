@@ -81,7 +81,7 @@ Client → API Gateway → Lambda
 - Pay-per-invocation
 
 **Cost:** $7.53/month
-**💰 76% cheaper**
+**💰 87% cheaper**
 
 </td>
 </tr>
