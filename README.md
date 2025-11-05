@@ -61,7 +61,7 @@ Client → API Gateway → VPC Link
 - Private NLB + VPC Link
 - CloudWatch monitoring
 
-**Cost:** $62/month
+**Cost:** $57/month
 
 </td>
 <td width="50%">
@@ -80,7 +80,7 @@ Client → API Gateway → Lambda
 - Auto-scaling built-in
 - Pay-per-invocation
 
-**Cost:** $14.84/month
+**Cost:** $7.53/month
 **💰 76% cheaper**
 
 </td>
@@ -230,39 +230,7 @@ curl -X POST https://YOUR_API_URL/prod/positions \
 
 ---
 
-## 💰 **Cost Analysis**
-
-Based on **1 million requests/month** in `us-east-1`:
-
-### **ECS Fargate Architecture**
-| Service | Monthly | Annual |
-|---------|---------|--------|
-| ECS Fargate (0.25 vCPU, 0.5 GB) | $11.00 | $132.00 |
-| Network Load Balancer | $16.50 | $198.00 |
-| VPC Link | $22.50 | $270.00 |
-| API Gateway | $3.50 | $42.00 |
-| DynamoDB On-Demand | $2.50 | $30.00 |
-| Data Transfer + Logs | $6.00 | $72.00 |
-| **TOTAL** | **$62.00** | **$744.00** |
-
-### **Lambda Serverless Architecture**
-| Service | Monthly | Annual |
-|---------|---------|--------|
-| Lambda Invocations | $0.20 | $2.40 |
-| Lambda Compute (GB-s) | $3.34 | $40.08 |
-| API Gateway | $3.50 | $42.00 |
-| DynamoDB On-Demand | $2.50 | $30.00 |
-| Data Transfer + Logs | $5.30 | $63.60 |
-| **TOTAL** | **$14.84** | **$178.08** |
-
-### **💡 Key Insight**
-Serverless architecture saves **$553.92/year (76.1%)** for typical workloads (<10M requests/month). Break-even point is around **35-40M requests/month**.
-
----
-
 ## 🧪 **Testing**
-
-### **Automated Testing with REST Client**
 
 Use the provided `tests.http` file with VS Code REST Client extension:
 
