@@ -9,6 +9,7 @@ Parameters:
   ECRImage:
     Type: String
     Description: "ECR image URI (e.g., 992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest)"
+    Default: "992382582640.dkr.ecr.us-east-1.amazonaws.com/bitcoin-crud:latest"
     
   VpcId:
     Type: AWS::EC2::VPC::Id
@@ -21,6 +22,12 @@ Parameters:
   RouteTableId:
     Type: String
     Description: "Route Table ID for VPC Endpoints (your private route table)"
+    Default: "rtb-0f9e9a44cd6c8ef2c"
+
+  VpcCidr:
+    Type: String
+    Description: "The CIDR block for your VPC (e.g., 172.31.0.0/16). REQUIRED for security."
+    Default: "172.31.0.0/16"
 
 # ==============================================================================
 # RESOURCES
@@ -43,6 +50,8 @@ Resources:
         - AttributeName: id
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
 
   # ----------------------------------------------------------------------------
   # VPC Endpoints Security Group
@@ -58,9 +67,6 @@ Resources:
           FromPort: 443
           ToPort: 443
           SourceSecurityGroupId: !Ref ECSSecurityGroup
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
 
   # ----------------------------------------------------------------------------
   # VPC Endpoints
@@ -135,9 +141,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: 0.0.0.0/0
+          CidrIp: !Ref VpcCidr
       SecurityGroupEgress:
-        - IpProtocol: -1
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
 
   NLB:
