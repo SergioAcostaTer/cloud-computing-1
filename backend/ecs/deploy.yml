@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Bitcoin Positions API - ECS Fargate with API Gateway, VPC Link, and DynamoDB"
+Description: "Bitcoin Positions API - ECS Fargate with API Gateway, VPC Link, DynamoDB, and VPC Endpoints"
 
 # ==============================================================================
 # PARAMETERS
@@ -17,6 +17,10 @@ Parameters:
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
     Description: "List of subnet IDs for ECS tasks and NLB"
+  
+  RouteTableId:
+    Type: String
+    Description: "Route Table ID for VPC Endpoints (your private route table)"
 
 # ==============================================================================
 # RESOURCES
@@ -39,6 +43,84 @@ Resources:
         - AttributeName: id
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+
+  # ----------------------------------------------------------------------------
+  # VPC Endpoints Security Group
+  # ----------------------------------------------------------------------------
+  
+  VPCEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group for VPC endpoints - allows HTTPS traffic from ECS tasks"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  # ----------------------------------------------------------------------------
+  # VPC Endpoints
+  # ----------------------------------------------------------------------------
+  
+  # ECR API Endpoint - for pulling container images
+  ECRApiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.api"
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      PrivateDnsEnabled: true
+
+  # ECR Docker Endpoint - for pulling container layers
+  ECRDockerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.dkr"
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      PrivateDnsEnabled: true
+
+  # S3 Gateway Endpoint - for pulling container layers from S3
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Gateway
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcId: !Ref VpcId
+      RouteTableIds:
+        - !Ref RouteTableId
+
+  # CloudWatch Logs Endpoint - for sending container logs
+  CloudWatchLogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.logs"
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      PrivateDnsEnabled: true
+
+  # DynamoDB Gateway Endpoint - for DynamoDB access
+  DynamoDBEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Gateway
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.dynamodb"
+      VpcId: !Ref VpcId
+      RouteTableIds:
+        - !Ref RouteTableId
 
   # ----------------------------------------------------------------------------
   # Network Resources
@@ -133,7 +215,13 @@ Resources:
 
   Service:
     Type: AWS::ECS::Service
-    DependsOn: Listener
+    DependsOn: 
+      - Listener
+      - ECRApiEndpoint
+      - ECRDockerEndpoint
+      - S3GatewayEndpoint
+      - CloudWatchLogsEndpoint
+      - DynamoDBEndpoint
     Properties:
       ServiceName: bitcoin-api-service
       Cluster: !Ref Cluster
@@ -142,7 +230,7 @@ Resources:
       DesiredCount: 1
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
+          AssignPublicIp: DISABLED
           Subnets: !Ref SubnetIds
           SecurityGroups:
             - !Ref ECSSecurityGroup
@@ -569,10 +657,15 @@ Outputs:
     Description: "ECS service name"
     Value: !GetAtt Service.Name
     
-  NlbDns:
-    Description: "Internal Network Load Balancer DNS name"
-    Value: !GetAtt NLB.DNSName
-    
   ClusterName:
     Description: "ECS cluster name"
     Value: !Ref Cluster
+  
+  VPCEndpoints:
+    Description: "VPC Endpoints created for private connectivity"
+    Value: !Sub |
+      ECR API: ${ECRApiEndpoint}
+      ECR Docker: ${ECRDockerEndpoint}
+      S3: ${S3GatewayEndpoint}
+      CloudWatch Logs: ${CloudWatchLogsEndpoint}
+      DynamoDB: ${DynamoDBEndpoint}
