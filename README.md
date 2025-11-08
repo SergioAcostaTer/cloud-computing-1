@@ -109,7 +109,7 @@ aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs"
 ```
 
-**Deploy time:** ~5 minutes | **Cost:** $7.53/month
+**Deploy time:** ~2 minutes | **Cost:** $7.53/month
 
 ### ECS Fargate
 
@@ -127,7 +127,7 @@ aws cloudformation deploy \
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
-**Deploy time:** ~10 minutes | **Cost:** $57/month
+**Deploy time:** ~15 minutes | **Cost:** $57/month
 
 ### Frontend (S3 Static Hosting)
 
