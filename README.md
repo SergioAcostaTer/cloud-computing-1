@@ -4,6 +4,9 @@
 
 A full-stack Bitcoin trading tracker featuring **dual AWS architectures** (ECS Fargate + Serverless Lambda), real-time price tracking, and infrastructure-as-code deployment.
 
+[![AWS](https://img.shields.io/badge/AWS-Cloud-orange?logo=amazon-aws)](https://aws.amazon.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-18.x-green?logo=node.js)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ---
 
 ## ✨ Key Features
@@ -54,6 +57,20 @@ DynamoDB
 </tr>
 </table>
 
+### Detailed Architecture Diagrams
+
+<div align="center">
+
+#### ECS Fargate Architecture
+![ECS Architecture](schemes/ecs.jpg)
+*Complete VPC setup with private subnets, VPC endpoints, and container orchestration*
+
+#### Lambda Serverless Architecture
+![Lambda Architecture](schemes/lambdas.jpg)
+*Event-driven serverless design with 5 independent Lambda functions*
+
+</div>
+
 ---
 
 ## 🛠️ Tech Stack
@@ -92,7 +109,7 @@ aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs"
 ```
 
-**Deploy time:** ~2 minutes | **Cost:** $7.53/month
+**Deploy time:** ~5 minutes | **Cost:** $7.53/month
 
 ### ECS Fargate
 
@@ -110,7 +127,7 @@ aws cloudformation deploy \
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
-**Deploy time:** ~15 minutes | **Cost:** $57/month
+**Deploy time:** ~10 minutes | **Cost:** $57/month
 
 ### Frontend (S3 Static Hosting)
 
@@ -194,11 +211,11 @@ Potential improvements: AWS Cognito auth, ElastiCache layer, GitHub Actions CI/C
 
 ---
 
+---
+
 ## 📄 License
 
 MIT License - feel free to use this project as a learning resource or portfolio piece.
-
----
 
 <div align="center">
 
